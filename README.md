@@ -1,2 +1,2 @@
-R2P_IMU_module
+R2P IMU module
 ==============
