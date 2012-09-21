@@ -28,8 +28,6 @@
 #include "shell.h"
 #include "chprintf.h"
 
-// #include "rtcan.h"
-
 #include "l3g4200d.h"
 #include "lsm303.h"
 #include "madgwick.h"
@@ -38,13 +36,6 @@
 #define WA_SIZE_256B      THD_WA_SIZE(256)
 #define WA_SIZE_1K      THD_WA_SIZE(1024)
 
-/*
- static const RTCANConfig rtcancfg =
- {10000, 60};
-
- extern RTCANDriver RTCAND;
- */
-
 static msg_t stream_gyro_thread(void *arg);
 static msg_t stream_acc_thread(void *arg);
 static msg_t stream_mag_thread(void *arg);
@@ -52,7 +43,6 @@ static msg_t stream_raw_thread(void *arg);
 static msg_t stream_madgwick_thread(void *arg);
 static msg_t stream_mahony_thread(void *arg);
 static msg_t stream_tilt_thread(void *arg);
-static msg_t publish_tilt_thread(void *arg);
 
 Thread *gyrotp = NULL;
 Thread *acctp = NULL;
@@ -335,32 +325,6 @@ static void cmd_stream_tilt(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_publish_tilt(BaseChannel *chp, int argc, char *argv[]) {
-  Thread *tp;
-
-  if (argc != 1) {
-    chprintf(chp, "Usage: ptilt <Hz>\r\n");
-    return;
-  }
-
-  period = (1000 / atoi(argv[0]));
-
-  if (gyrotp == NULL)
-    gyrotp = gyroRun(&SPI_DRIVER, NORMALPRIO);
-  if (acctp == NULL)
-    acctp = accRun(&I2C_DRIVER, NORMALPRIO);
-
-  tp = chThdCreateFromHeap(NULL, WA_SIZE_1K, NORMALPRIO, publish_tilt_thread,
-                           (void *)&period);
-
-  if (tp == NULL) {
-    chprintf(chp, "out of memory\r\n");
-    return;
-  }
-
-  return;
-}
-
 static void cmd_reset(BaseChannel *chp, int argc, char *argv[]) {
 
   stm32_reset();
@@ -383,7 +347,6 @@ static const ShellCommand commands[] =
      {"smad", cmd_stream_madgwick},
      {"smah", cmd_stream_mahony},
      {"stilt", cmd_stream_tilt},
-     {"ptilt", cmd_publish_tilt},
      {"reset", cmd_reset},
      {NULL, NULL}};
 
@@ -636,35 +599,6 @@ static msg_t stream_tilt_thread(void *arg) {
   return 0;
 }
 
-/*
- * Tilt publish thread
- */
-static msg_t publish_tilt_thread(void *arg) {
-  attitude_t attitude_data;
-  float tilt;
-  uint16_t period = *(uint16_t *)arg;
-  systime_t time = chTimeNow();
-  CANTxFrame tx_frame;
-
-  tx_frame.DLC = 4;
-  tx_frame.RTR = CAN_RTR_DATA;
-  tx_frame.IDE = CAN_IDE_STD;
-  tx_frame.SID = 123;
-
-  while (TRUE) {
-    MahonyAHRSupdateIMU(0, (gyro_data.y / 57.143) * 3.141592 / 180.0, 0,
-                        -acc_data.x / 1000.0, 0, acc_data.z / 1000.0);
-    getMahAttitude(&attitude_data);
-    tilt = (attitude_data.pitch * 180.0 / 3.141592);
-    tx_frame.data32[0] = *(uint32_t*)&tilt;
-    canTryTransmit(&CAND1, &tx_frame);
-    time += MS2ST(period);
-    chThdSleepUntil(time);
-  }
-
-  return 0;
-}
-
 void stm32_reset(void) {
 
   chThdSleep(MS2ST(10));
@@ -690,36 +624,6 @@ void stm32_reset(void) {
   while (1)
     ;
 }
-
-/*===========================================================================*/
-/* CAN related.                                                              */
-/*===========================================================================*/
-
-/*
- * CAN transmit callback.
- */
-static void can_tx_cb(CANDriver *canp, uint8_t mb) {
-
-  (void)mb;
-  palTogglePad(LED_GPIO, LED2);
-}
-
-/*
- * CAN receive callback.
- */
-static void can_rx_cb(CANDriver *canp, uint8_t mb) {
-
-  (void)mb;
-  palTogglePad(LED_GPIO, LED3);
-}
-
-/*
- * CAN configuration.
- */
-static const CANConfig can_cfg =
-  {can_tx_cb, can_rx_cb, NULL, CAN_MCR_NART | CAN_MCR_TXFP, CAN_BTR_SJW(1)
-       | CAN_BTR_TS2(2) | CAN_BTR_TS1(4) | CAN_BTR_BRP(3)};
-
 
 /*
  * Application entry point.
@@ -747,10 +651,6 @@ int main(void) {
    */
   shellInit();
 
-//  rtcanInit();
-//  rtcanCalibrate(&rtcancfg);
-//  rtcanStart(&rtcancfg);
-
   /*
    * Activates the EXT driver.
    */
@@ -765,11 +665,6 @@ int main(void) {
    * Activates the SPI driver.
    */
   spiStart(&SPI_DRIVER, &spi1cfg);
-
-  /*
-   * Activates the CAN driver.
-   */
-  canStart(&CAND1, &can_cfg);
 
   /*
    * Creates the blinker thread.
