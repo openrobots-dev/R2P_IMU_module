@@ -28,8 +28,6 @@
 #include "shell.h"
 #include "chprintf.h"
 
-// #include "rtcan.h"
-
 #include "l3g4200d.h"
 #include "lsm303.h"
 #include "madgwick.h"
@@ -37,13 +35,6 @@
 
 #define WA_SIZE_256B      THD_WA_SIZE(256)
 #define WA_SIZE_1K      THD_WA_SIZE(1024)
-
-/*
- static const RTCANConfig rtcancfg =
- {10000, 60};
-
- extern RTCANDriver RTCAND;
- */
 
 static msg_t stream_gyro_thread(void *arg);
 static msg_t stream_acc_thread(void *arg);
@@ -336,23 +327,6 @@ static void cmd_stream_tilt(BaseSequentialStream*chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_publish_tilt(BaseSequentialStream*chp, int argc, char *argv[]) {
-
-  if (argc != 1) {
-    chprintf(chp, "Usage: ptilt <Hz>\r\n");
-    return;
-  }
-
-  period = (1000 / atoi(argv[0]));
-
-  if (gyrotp == NULL)
-    gyrotp = gyroRun(&SPI_DRIVER, NORMALPRIO);
-  if (acctp == NULL)
-    acctp = accRun(&I2C_DRIVER, NORMALPRIO);
-
-  return;
-}
-
 static void cmd_reset(BaseSequentialStream*chp, int argc, char *argv[]) {
 
   (void)chp;
@@ -377,7 +351,6 @@ static const ShellCommand commands[] =
      {"smad", cmd_stream_madgwick},
      {"smah", cmd_stream_mahony},
      {"stilt", cmd_stream_tilt},
-     {"ptilt", cmd_publish_tilt},
      {"reset", cmd_reset},
      {NULL, NULL}};
 
@@ -607,7 +580,6 @@ static msg_t stream_tilt_thread(void *arg) {
 
   return 0;
 }
-
 
 void stm32_reset(void) {
 
