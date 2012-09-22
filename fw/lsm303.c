@@ -89,9 +89,9 @@ void lsm303_acc_update(I2CDriver *i2cp) {
       ;
   }
 
-  acc_data.x = (int16_t)((rx_data[1] << 8) | rx_data[0]) / 16;
-  acc_data.y = (int16_t)((rx_data[3] << 8) | rx_data[2]) / 16;
-  acc_data.z = (int16_t)((rx_data[5] << 8) | rx_data[4]) / 16;
+  acc_data.x = (((int16_t)rx_data[1] << 8) | (int16_t)rx_data[0]) / 16;
+  acc_data.y = (((int16_t)rx_data[3] << 8) | (int16_t)rx_data[2]) / 16;
+  acc_data.z = (((int16_t)rx_data[5] << 8) | (int16_t)rx_data[4]) / 16;
 
   tx_data[0] = LSM303_STATUS_REG_A; /* register address */
   i2cAcquireBus(i2cp);
@@ -112,7 +112,10 @@ void lsm303_acc_update(I2CDriver *i2cp) {
   status_a = rx_data[0];
 }
 
-void lsm303_acc_int1_cb(void) {
+void lsm303_acc_int1_cb(EXTDriver *extp, expchannel_t channel) {
+  (void)extp;
+  (void)channel;
+
   /* Wakes up the thread.*/
   chSysLockFromIsr();
   if (acctp != NULL) {
@@ -209,9 +212,9 @@ void lsm303_mag_update(I2CDriver *i2cp) {
       ;
   }
 
-  mag_data.x = (int16_t)((rx_data[0] << 8) | rx_data[1]);
-  mag_data.z = (int16_t)((rx_data[2] << 8) | rx_data[3]);
-  mag_data.y = (int16_t)((rx_data[4] << 8) | rx_data[5]);
+  mag_data.x = (((int16_t)rx_data[0] << 8) | (int16_t)rx_data[1]);
+  mag_data.z = (((int16_t)rx_data[2] << 8) | (int16_t)rx_data[3]);
+  mag_data.y = (((int16_t)rx_data[4] << 8) | (int16_t)rx_data[5]);
 
   /*
   tx_data[0] = LSM303_SR_REG_M;
@@ -234,7 +237,10 @@ void lsm303_mag_update(I2CDriver *i2cp) {
   */
 }
 
-void lsm303_mag_drdy_cb(void) {
+void lsm303_mag_drdy_cb(EXTDriver *extp, expchannel_t channel) {
+  (void)extp;
+  (void)channel;
+
   /* Wakes up the thread.*/
   chSysLockFromIsr();
   if (magtp != NULL) {

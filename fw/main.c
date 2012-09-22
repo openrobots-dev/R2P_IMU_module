@@ -52,12 +52,13 @@ static msg_t stream_raw_thread(void *arg);
 static msg_t stream_madgwick_thread(void *arg);
 static msg_t stream_mahony_thread(void *arg);
 static msg_t stream_tilt_thread(void *arg);
-static msg_t publish_tilt_thread(void *arg);
 
 Thread *gyrotp = NULL;
 Thread *acctp = NULL;
 Thread *magtp = NULL;
 uint16_t period;
+
+void stm32_reset(void);
 
 /*===========================================================================*/
 /* Command line related.                                                     */
@@ -66,7 +67,7 @@ uint16_t period;
 #define SHELL_WA_SIZE   THD_WA_SIZE(4096)
 #define TEST_WA_SIZE    THD_WA_SIZE(1024)
 
-static void cmd_mem(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_mem(BaseSequentialStream*chp, int argc, char *argv[]) {
   size_t n, size;
 
   (void)argv;
@@ -80,7 +81,7 @@ static void cmd_mem(BaseChannel *chp, int argc, char *argv[]) {
   chprintf(chp, "heap free total  : %u bytes\r\n", size);
 }
 
-static void cmd_threads(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_threads(BaseSequentialStream*chp, int argc, char *argv[]) {
   static const char *states[] =
     {THD_STATE_NAMES};
   Thread *tp;
@@ -101,7 +102,7 @@ static void cmd_threads(BaseChannel *chp, int argc, char *argv[]) {
   } while (tp != NULL);
 }
 
-static void cmd_test(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_test(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   (void)argc;
@@ -119,7 +120,7 @@ static void cmd_test(BaseChannel *chp, int argc, char *argv[]) {
   chThdWait(tp);
 }
 
-static void cmd_gyro(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_gyro(BaseSequentialStream*chp, int argc, char *argv[]) {
 
   (void)argv;
   if (argc > 0) {
@@ -131,7 +132,7 @@ static void cmd_gyro(BaseChannel *chp, int argc, char *argv[]) {
     gyrotp = gyroRun(&SPI_DRIVER, NORMALPRIO);
 }
 
-static void cmd_acc(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_acc(BaseSequentialStream*chp, int argc, char *argv[]) {
 
   (void)argv;
   if (argc > 0) {
@@ -143,7 +144,7 @@ static void cmd_acc(BaseChannel *chp, int argc, char *argv[]) {
     acctp = accRun(&I2C_DRIVER, NORMALPRIO);
 }
 
-static void cmd_mag(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_mag(BaseSequentialStream*chp, int argc, char *argv[]) {
 
   (void)argv;
   if (argc > 0) {
@@ -155,7 +156,7 @@ static void cmd_mag(BaseChannel *chp, int argc, char *argv[]) {
     magtp = magRun(&I2C_DRIVER, NORMALPRIO);
 }
 
-static void cmd_stream_gyro(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_gyro(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -179,7 +180,7 @@ static void cmd_stream_gyro(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_stream_acc(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_acc(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -202,7 +203,7 @@ static void cmd_stream_acc(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_stream_mag(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_mag(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -225,7 +226,7 @@ static void cmd_stream_mag(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_stream_raw(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_raw(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -253,7 +254,7 @@ static void cmd_stream_raw(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_stream_madgwick(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_madgwick(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -281,7 +282,7 @@ static void cmd_stream_madgwick(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_stream_mahony(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_mahony(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -309,7 +310,7 @@ static void cmd_stream_mahony(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_stream_tilt(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_stream_tilt(BaseSequentialStream*chp, int argc, char *argv[]) {
   Thread *tp;
 
   if (argc != 1) {
@@ -335,8 +336,7 @@ static void cmd_stream_tilt(BaseChannel *chp, int argc, char *argv[]) {
   return;
 }
 
-static void cmd_publish_tilt(BaseChannel *chp, int argc, char *argv[]) {
-  Thread *tp;
+static void cmd_publish_tilt(BaseSequentialStream*chp, int argc, char *argv[]) {
 
   if (argc != 1) {
     chprintf(chp, "Usage: ptilt <Hz>\r\n");
@@ -350,21 +350,15 @@ static void cmd_publish_tilt(BaseChannel *chp, int argc, char *argv[]) {
   if (acctp == NULL)
     acctp = accRun(&I2C_DRIVER, NORMALPRIO);
 
-  tp = chThdCreateFromHeap(NULL, WA_SIZE_1K, NORMALPRIO, publish_tilt_thread,
-                           (void *)&period);
-
-  if (tp == NULL) {
-    chprintf(chp, "out of memory\r\n");
-    return;
-  }
-
   return;
 }
 
-static void cmd_reset(BaseChannel *chp, int argc, char *argv[]) {
+static void cmd_reset(BaseSequentialStream*chp, int argc, char *argv[]) {
 
+  (void)chp;
+  (void)argc;
+  (void)argv;
   stm32_reset();
-
   return;
 }
 
@@ -388,7 +382,7 @@ static const ShellCommand commands[] =
      {NULL, NULL}};
 
 static const ShellConfig shell_cfg1 =
-  {(BaseChannel *)&SERIAL_DRIVER, commands};
+  {(BaseSequentialStream*)&SERIAL_DRIVER, commands};
 
 /*===========================================================================*/
 /* I2C related.                                                              */
@@ -399,7 +393,8 @@ static const ShellConfig shell_cfg1 =
 //  {OPMODE_I2C, 400000, FAST_DUTY_CYCLE_16_9, };
 /* I2C1 */
 static const I2CConfig i2c1cfg =
-  {OPMODE_I2C, 400000, FAST_DUTY_CYCLE_16_9};
+  {OPMODE_I2C, 400000, FAST_DUTY_CYCLE_2};
+
 /*===========================================================================*/
 /* SPI related.                                                              */
 /*===========================================================================*/
@@ -419,37 +414,23 @@ static const EXTConfig extcfg =
   {
     {
       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_RISING_EDGE, l3g4200d_drdy_callback},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_FALLING_EDGE, lsm303_mag_drdy_cb},
-       {EXT_CH_MODE_RISING_EDGE, lsm303_acc_int1_cb},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL},
-       {EXT_CH_MODE_DISABLED, NULL}, },
-   EXT_MODE_EXTI(0,
-       EXT_MODE_GPIOB,
-       0,
-       0,
-       0,
-       EXT_MODE_GPIOB,
-       EXT_MODE_GPIOB,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0)};
+      {EXT_CH_MODE_RISING_EDGE | EXT_MODE_GPIOB, l3g4200d_drdy_callback},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_FALLING_EDGE | EXT_MODE_GPIOB, lsm303_mag_drdy_cb},
+      {EXT_CH_MODE_RISING_EDGE | EXT_MODE_GPIOB, lsm303_acc_int1_cb},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL},
+      {EXT_CH_MODE_DISABLED, NULL}
+    }
+  };
 
 /*===========================================================================*/
 /* Application threads.                                                      */
@@ -483,7 +464,7 @@ static msg_t stream_gyro_thread(void *arg) {
   chRegSetThreadName("l3g4200d_stream_gyro");
 
   while (TRUE) {
-    chprintf((BaseChannel *)&SERIAL_DRIVER, "%6d %5d %5d %5d\r\n", (int)time,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %5d %5d %5d\r\n", (int)time,
              gyro_data.x, gyro_data.y, gyro_data.z);
     time += MS2ST(period);
     chThdSleepUntil(time);
@@ -504,7 +485,7 @@ static msg_t stream_acc_thread(void *arg) {
   chRegSetThreadName("lsm303_stream_acc");
 
   while (TRUE) {
-    chprintf((BaseChannel *)&SERIAL_DRIVER, "%6d %5d %5d %5d %x\r\n", (int)time,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %5d %5d %5d %x\r\n", (int)time,
              acc_data.x, acc_data.y, acc_data.z, status_a);
     time += MS2ST(period);
     chThdSleepUntil(time);
@@ -519,14 +500,13 @@ extern mag_data_t mag_data;
 extern uint8_t status_m;
 
 static msg_t stream_mag_thread(void *arg) {
-  char buf[128];
   uint16_t period = *(uint16_t *)arg;
   systime_t time = chTimeNow();
 
   chRegSetThreadName("lsm303_stream_mag");
 
   while (TRUE) {
-    chprintf((BaseChannel *)&SERIAL_DRIVER, "%6d %5d %5d %5d %x\r\n", (int)time,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %5d %5d %5d %x\r\n", (int)time,
              mag_data.x, mag_data.y, mag_data.z, status_m);
     time += MS2ST(period);
     chThdSleepUntil(time);
@@ -538,16 +518,14 @@ static msg_t stream_mag_thread(void *arg) {
  * Stream thread
  */
 static msg_t stream_raw_thread(void *arg) {
-  char buffer[256];
   uint16_t period = *(uint16_t *)arg;
   systime_t time = chTimeNow();
 
   while (TRUE) {
-    sprintf(buffer, "%6d %f %f %f %f %f %f %d %d %d\r\n", (int)time,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %f %f %f %f %f %f %d %d %d\r\n", (int)time,
             gyro_data.x / 57.143, gyro_data.y / 57.143, gyro_data.z / 57.143,
             acc_data.x / 1000.0, acc_data.y / 1000.0, acc_data.z / 1000.0,
             mag_data.x, mag_data.y, mag_data.z);
-    chprintf((BaseChannel *)&SERIAL_DRIVER, buffer);
     time += MS2ST(period);
     chThdSleepUntil(time);
   }
@@ -560,7 +538,6 @@ static msg_t stream_raw_thread(void *arg) {
  */
 static msg_t stream_madgwick_thread(void *arg) {
   attitude_t attitude_data;
-  char buffer[64];
   uint16_t period = *(uint16_t *)arg;
   systime_t time = chTimeNow();
 
@@ -574,9 +551,8 @@ static msg_t stream_madgwick_thread(void *arg) {
                        -acc_data.x / 1000.0, acc_data.y / 1000.0,
                        acc_data.z / 1000.0, mx, -my, -mz);
     getMadAttitude(&attitude_data);
-    sprintf(buffer, "%6d %f %f %f\r\n", (int)time, attitude_data.roll,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %f %f %f\r\n", (int)time, attitude_data.roll,
             attitude_data.pitch, attitude_data.yaw);
-    chprintf((BaseChannel *)&SERIAL_DRIVER, buffer);
     time += MS2ST(period);
     chThdSleepUntil(time);
   }
@@ -589,7 +565,6 @@ static msg_t stream_madgwick_thread(void *arg) {
  */
 static msg_t stream_mahony_thread(void *arg) {
   attitude_t attitude_data;
-  char buffer[64];
   uint16_t period = *(uint16_t *)arg;
   systime_t time = chTimeNow();
 
@@ -603,9 +578,8 @@ static msg_t stream_mahony_thread(void *arg) {
                      -acc_data.x / 1000.0, acc_data.y / 1000.0,
                      acc_data.z / 1000.0, mx, -my, -mz);
     getMahAttitude(&attitude_data);
-    sprintf(buffer, "%6d %f %f %f\r\n", (int)time, attitude_data.roll,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %f %f %f\r\n", (int)time, attitude_data.roll,
             attitude_data.pitch, attitude_data.yaw);
-    chprintf((BaseChannel *)&SERIAL_DRIVER, buffer);
     time += MS2ST(period);
     chThdSleepUntil(time);
   }
@@ -618,7 +592,6 @@ static msg_t stream_mahony_thread(void *arg) {
  */
 static msg_t stream_tilt_thread(void *arg) {
   attitude_t attitude_data;
-  char buffer[64];
   uint16_t period = *(uint16_t *)arg;
   systime_t time = chTimeNow();
 
@@ -626,9 +599,8 @@ static msg_t stream_tilt_thread(void *arg) {
     MahonyAHRSupdateIMU(0, (gyro_data.y / 57.143) * 3.141592 / 180.0, 0,
                         -acc_data.x / 1000.0, 0, acc_data.z / 1000.0);
     getMahAttitude(&attitude_data);
-    sprintf(buffer, "%6d %f\r\n", (int)time,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %f\r\n", (int)time,
             attitude_data.pitch * 180.0 / 3.141592);
-    chprintf((BaseChannel *)&SERIAL_DRIVER, buffer);
     time += MS2ST(period);
     chThdSleepUntil(time);
   }
@@ -636,34 +608,6 @@ static msg_t stream_tilt_thread(void *arg) {
   return 0;
 }
 
-/*
- * Tilt publish thread
- */
-static msg_t publish_tilt_thread(void *arg) {
-  attitude_t attitude_data;
-  float tilt;
-  uint16_t period = *(uint16_t *)arg;
-  systime_t time = chTimeNow();
-  CANTxFrame tx_frame;
-
-  tx_frame.DLC = 4;
-  tx_frame.RTR = CAN_RTR_DATA;
-  tx_frame.IDE = CAN_IDE_STD;
-  tx_frame.SID = 123;
-
-  while (TRUE) {
-    MahonyAHRSupdateIMU(0, (gyro_data.y / 57.143) * 3.141592 / 180.0, 0,
-                        -acc_data.x / 1000.0, 0, acc_data.z / 1000.0);
-    getMahAttitude(&attitude_data);
-    tilt = (attitude_data.pitch * 180.0 / 3.141592);
-    tx_frame.data32[0] = *(uint32_t*)&tilt;
-    canTryTransmit(&CAND1, &tx_frame);
-    time += MS2ST(period);
-    chThdSleepUntil(time);
-  }
-
-  return 0;
-}
 
 void stm32_reset(void) {
 
@@ -691,36 +635,6 @@ void stm32_reset(void) {
     ;
 }
 
-/*===========================================================================*/
-/* CAN related.                                                              */
-/*===========================================================================*/
-
-/*
- * CAN transmit callback.
- */
-static void can_tx_cb(CANDriver *canp, uint8_t mb) {
-
-  (void)mb;
-  palTogglePad(LED_GPIO, LED2);
-}
-
-/*
- * CAN receive callback.
- */
-static void can_rx_cb(CANDriver *canp, uint8_t mb) {
-
-  (void)mb;
-  palTogglePad(LED_GPIO, LED3);
-}
-
-/*
- * CAN configuration.
- */
-static const CANConfig can_cfg =
-  {can_tx_cb, can_rx_cb, NULL, CAN_MCR_NART | CAN_MCR_TXFP, CAN_BTR_SJW(1)
-       | CAN_BTR_TS2(2) | CAN_BTR_TS1(4) | CAN_BTR_BRP(3)};
-
-
 /*
  * Application entry point.
  */
@@ -747,10 +661,6 @@ int main(void) {
    */
   shellInit();
 
-//  rtcanInit();
-//  rtcanCalibrate(&rtcancfg);
-//  rtcanStart(&rtcancfg);
-
   /*
    * Activates the EXT driver.
    */
@@ -765,11 +675,6 @@ int main(void) {
    * Activates the SPI driver.
    */
   spiStart(&SPI_DRIVER, &spi1cfg);
-
-  /*
-   * Activates the CAN driver.
-   */
-  canStart(&CAND1, &can_cfg);
 
   /*
    * Creates the blinker thread.

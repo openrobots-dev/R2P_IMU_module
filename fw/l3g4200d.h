@@ -86,7 +86,7 @@ extern "C" {
   void l3g4200dWriteRegister(SPIDriver *spip, uint8_t reg, uint8_t value);
   int16_t l3g4200dGetAxis(SPIDriver *spip, uint8_t axis);
   void l3g4200d_update(SPIDriver *spip);
-  void l3g4200d_drdy_callback(void);
+  void l3g4200d_drdy_callback(EXTDriver *extp, expchannel_t channel);
   Thread *gyroRun(SPIDriver *spip, tprio_t prio);
 #ifdef __cplusplus
 }
