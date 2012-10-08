@@ -81,12 +81,12 @@ typedef struct {
 
 int lsm303_acc_init(I2CDriver *i2cp);
 void lsm303_acc_update(I2CDriver *i2cp);
-void lsm303_acc_int1_cb(void);
+void lsm303_acc_int1_cb(EXTDriver *extp, expchannel_t channel);
 Thread *accRun(I2CDriver *i2cp, tprio_t prio);
 
 int lsm303_mag_init(I2CDriver *i2cp);
 void lsm303_mag_update(I2CDriver *i2cp);
-void lsm303_mag_drdy_cb(void);
+void lsm303_mag_drdy_cb(EXTDriver *extp, expchannel_t channel);
 Thread *magRun(I2CDriver *i2cp, tprio_t prio);
 
 #endif /* LSM303_H_ */

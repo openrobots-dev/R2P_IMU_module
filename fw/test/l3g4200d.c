@@ -36,7 +36,6 @@ static uint8_t txbuf[2];
 static uint8_t rxbuf[2];
 
 static Thread *gyrotp = NULL;
-static Thread *_gtp = NULL;
 
 systime_t gyro_update_time;
 gyro_data_t gyro_data =
@@ -51,7 +50,8 @@ gyro_data_t gyro_data =
  * @return              The register value.
  */
 int init_l3g4200d(SPIDriver *spip) {
-	uint8_t tmp = l3g4200dReadRegister(spip, L3G4200D_WHO_AM_I);
+
+  l3g4200dReadRegister(spip, L3G4200D_WHO_AM_I);
   l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG1, 0x7F);
   l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG2, 0x00);
   l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG3, 0x08);
@@ -174,13 +174,16 @@ void l3g4200d_update(SPIDriver *spip) {
   chSysUnlock();
 }
 
-void l3g4200d_drdy_callback(void) {
+void l3g4200d_drdy_callback(EXTDriver *extp, expchannel_t channel) {
+  (void)extp;
+  (void)channel;
+
   /* Wakes up the thread.*/
   chSysLockFromIsr();
-  if (_gtp != NULL) {
-    _gtp->p_u.rdymsg = (msg_t)GYRO_DATA_READY;
-    chSchReadyI(_gtp);
-    _gtp = NULL;
+  if (gyrotp != NULL) {
+    gyrotp->p_u.rdymsg = (msg_t)GYRO_DATA_READY;
+    chSchReadyI(gyrotp);
+    gyrotp = NULL;
   }
   chSysUnlockFromIsr();
 }
@@ -193,7 +196,7 @@ static msg_t l3g4200d_update_thread(void *p) {
 
     /* Waiting for the IRQ to happen.*/
     chSysLock();
-    _gtp = chThdSelf();
+    gyrotp = chThdSelf();
     chSchGoSleepS(THD_STATE_SUSPENDED);
     msg = chThdSelf()->p_u.rdymsg;
     chSysUnlock();

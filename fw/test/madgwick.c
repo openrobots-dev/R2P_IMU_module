@@ -230,6 +230,7 @@ void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay,
 }
 
 //---------------------------------------------------------------------------------------------------
+#if 0
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 
@@ -242,6 +243,11 @@ float invSqrt(float x) {
   y = y * (1.5f - (halfx * y * y));
   return y;
 }
+#else
+float invSqrt(float x) {
+  return 1.0f / sqrt(x);
+}
+#endif
 
 void getMadAttitude(attitude_t *attp) {
   float y1 = 2 * q2 * q3 + 2 * q0 * q1;
