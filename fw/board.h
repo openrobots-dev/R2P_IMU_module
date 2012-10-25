@@ -28,8 +28,8 @@
 /*
  * Board identifier.
  */
-#define BOARD_R2D_IMU_MODULE
-#define BOARD_NAME              "R2D IMU module"
+#define BOARD_R2P_IMU_MODULE
+#define BOARD_NAME              "R2P IMU module"
 
 /*
  * Board frequencies.

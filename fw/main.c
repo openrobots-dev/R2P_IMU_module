@@ -495,9 +495,9 @@ static msg_t stream_raw_thread(void *arg) {
   systime_t time = chTimeNow();
 
   while (TRUE) {
-    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %f %f %f %f %f %f %d %d %d\r\n", (int)time,
-            gyro_data.x / 57.143, gyro_data.y / 57.143, gyro_data.z / 57.143,
-            acc_data.x / 1000.0, acc_data.y / 1000.0, acc_data.z / 1000.0,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %d %d %d %d %d %d %d %d %d\r\n", (int)time,
+            gyro_data.x, gyro_data.y, gyro_data.z,
+            acc_data.x, acc_data.y, acc_data.z,
             mag_data.x, mag_data.y, mag_data.z);
     time += MS2ST(period);
     chThdSleepUntil(time);

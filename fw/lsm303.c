@@ -1,11 +1,3 @@
-/**
- * This is most complex and difficult device.
- * It realize "read through write" paradigm. This is not standard, but
- * most of I2C devices use this paradigm.
- * You must write to device reading address, send restart to bus,
- * and then begin reading process.
- */
-
 #include <stdlib.h>
 
 #include "ch.h"
