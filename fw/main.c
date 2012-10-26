@@ -458,8 +458,8 @@ static msg_t stream_acc_thread(void *arg) {
   chRegSetThreadName("lsm303_stream_acc");
 
   while (TRUE) {
-    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %5d %5d %5d %x\r\n", (int)time,
-             acc_data.x, acc_data.y, acc_data.z, status_a);
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6u %5d %5d %5d\r\n", (uint32_t)time,
+             acc_data.x, acc_data.y, acc_data.z);
     time += MS2ST(period);
     chThdSleepUntil(time);
   }
@@ -479,8 +479,8 @@ static msg_t stream_mag_thread(void *arg) {
   chRegSetThreadName("lsm303_stream_mag");
 
   while (TRUE) {
-    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %5d %5d %5d %x\r\n", (int)time,
-             mag_data.x, mag_data.y, mag_data.z, status_m);
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %5d %5d %5d\r\n", (int)time,
+             mag_data.x, mag_data.y, mag_data.z);
     time += MS2ST(period);
     chThdSleepUntil(time);
   }
@@ -495,7 +495,7 @@ static msg_t stream_raw_thread(void *arg) {
   systime_t time = chTimeNow();
 
   while (TRUE) {
-    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%6d %d %d %d %d %d %d %d %d %d\r\n", (int)time,
+    chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "%u %d %d %d %d %d %d %d %d %d\r\n", (uint32_t)time,
             gyro_data.x, gyro_data.y, gyro_data.z,
             acc_data.x, acc_data.y, acc_data.z,
             mag_data.x, mag_data.y, mag_data.z);

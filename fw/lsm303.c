@@ -81,9 +81,9 @@ void lsm303_acc_update(I2CDriver *i2cp) {
       ;
   }
 
-  acc_data.x = (((int16_t)rx_data[1] << 8) | (int16_t)rx_data[0]) / 16;
-  acc_data.y = (((int16_t)rx_data[3] << 8) | (int16_t)rx_data[2]) / 16;
-  acc_data.z = (((int16_t)rx_data[5] << 8) | (int16_t)rx_data[4]) / 16;
+  acc_data.x = *((int16_t*)&(rx_data[0])) >> 4;
+  acc_data.y = *((int16_t*)&(rx_data[2])) >> 4;
+  acc_data.z = *((int16_t*)&(rx_data[4])) >> 4;
 
   tx_data[0] = LSM303_STATUS_REG_A; /* register address */
   i2cAcquireBus(i2cp);
