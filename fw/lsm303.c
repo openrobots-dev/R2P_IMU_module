@@ -48,8 +48,7 @@ int lsm303_acc_init(I2CDriver *i2cp) {
 
   if (status != RDY_OK) {
     errors = i2cGetErrors(i2cp);
-    while (1)
-      ;
+    while (1);
   }
 
   return 0;
@@ -77,8 +76,7 @@ void lsm303_acc_update(I2CDriver *i2cp) {
     palClearPad(LED_GPIO, LED2);
     palClearPad(LED_GPIO, LED3);
     palClearPad(LED_GPIO, LED4);
-    while (1)
-      ;
+    while (1);
   }
 
   acc_data.x = *((int16_t*)&(rx_data[0])) >> 4;
@@ -97,8 +95,7 @@ void lsm303_acc_update(I2CDriver *i2cp) {
     palClearPad(LED_GPIO, LED2);
     palClearPad(LED_GPIO, LED3);
     palClearPad(LED_GPIO, LED4);
-    while (1)
-      ;
+    while (1);
   }
 
   status_a = rx_data[0];
@@ -134,12 +131,10 @@ static msg_t lsm303_acc_update_thread(void *p) {
 
     /* If data ready, update all axis.*/
     if (msg == LSM303_ACC_DATA_READY) {
-      palClearPad(LED_GPIO, LED3);
       lsm303_acc_update(i2cp);
       while (status_a != 0x00) {
         lsm303_acc_update(i2cp);
       }
-      palSetPad(LED_GPIO, LED3);
 //      chprintf((BaseChannel *)&SERIAL_DRIVER, "ACC T: %d X: %d Y: %d Z: %d\r\n",
 //                 acc_update_time, acc_data.x, acc_data.y, acc_data.z);
     }
@@ -171,8 +166,7 @@ int lsm303_mag_init(I2CDriver *i2cp) {
 
   if (status != RDY_OK) {
     errors = i2cGetErrors(i2cp);
-    while (1)
-      ;
+    while (1);
   }
 
   return 0;
@@ -200,8 +194,7 @@ void lsm303_mag_update(I2CDriver *i2cp) {
     palClearPad(LED_GPIO, LED2);
     palClearPad(LED_GPIO, LED3);
     palClearPad(LED_GPIO, LED4);
-    while (1)
-      ;
+    //    while (1);
   }
 
   mag_data.x = (((int16_t)rx_data[0] << 8) | (int16_t)rx_data[1]);
@@ -259,12 +252,10 @@ static msg_t lsm303_mag_update_thread(void *p) {
 
     /* If data ready, update all axis.*/
     if (msg == LSM303_MAG_DATA_READY) {
-      palClearPad(LED_GPIO, LED4);
       lsm303_mag_update(i2cp);
 //      if (status_m != 0x00) {
 //        lsm303_mag_update(i2cp);
 //      }
-      palSetPad(LED_GPIO, LED4);
     }
   }
 

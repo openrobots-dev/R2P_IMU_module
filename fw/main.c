@@ -653,6 +653,15 @@ int main(void) {
    */
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
+  chThdSleepMilliseconds(200);
+
+  if (gyrotp == NULL)
+    gyrotp = gyroRun(&SPI_DRIVER, NORMALPRIO);
+  if (acctp == NULL)
+    acctp = accRun(&I2C_DRIVER, NORMALPRIO);
+  if (magtp == NULL)
+    magtp = magRun(&I2C_DRIVER, NORMALPRIO);
+
   /*
    * Normal main() thread activity, in this demo it does nothing except
    * sleeping in a loop and check the button state.

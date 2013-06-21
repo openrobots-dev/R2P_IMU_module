@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O0 -ggdb
+  USE_OPT = -O0 -ggdb -fomit-frame-pointer -falign-functions=16
 endif
 
 # C specific options here (added to USE_OPT).
@@ -15,7 +15,7 @@ endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -fno-rtti
+  USE_CPPOPT = -fno-rtti -fno-exceptions
 endif
 
 # Enable this if you want the linker to remove unused code and data
@@ -59,12 +59,18 @@ PROJECT = ch
 
 # Imported source files and paths
 CHIBIOS = ../../ChibiOS
+RTCAN = ../../RTCAN
+R2MW = ../../Middleware
+
 include ./board.mk
 include $(CHIBIOS)/os/hal/platforms/STM32F1xx/platform.mk
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/ports/GCC/ARMCMx/STM32F1xx/port.mk
 include $(CHIBIOS)/os/kernel/kernel.mk
 include $(CHIBIOS)/test/test.mk
+include $(RTCAN)/platforms/STM32/platform.mk
+include $(RTCAN)/RTCAN.mk
+include $(R2MW)/MW.mk
 
 # Define linker script file here
 LDSCRIPT= $(PORTLD)/STM32F103xB.ld
@@ -81,15 +87,33 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/shell.c \
        $(CHIBIOS)/os/various/syscalls.c \
+       $(RTCANSRC) \
+       $(RTCANPLATFORMSRC) \
        l3g4200d.c \
        lsm303.c \
        madgwick.c \
-       mahony.c \
-       main.c
+       mahony.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC =
+CPPSRC += $(CHIBIOS)/os/various/cpp_wrappers/ch.cpp $(R2MWCPPSRC)
+
+ifeq ($(TEST),blinking_led)
+  CSRC += main_blinking_led.c
+endif
+
+ifeq ($(TEST),hardware_test)
+  CSRC += main_hardware_test.c
+endif
+
+ifeq ($(TEST),filter_test)
+  CSRC += main_filter_test.c
+endif
+
+
+ifeq ($(TEST),middleware_test)
+  CPPSRC += main_middleware_test.cpp
+endif
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -117,7 +141,10 @@ ASMSRC = $(PORTASM)
 INCDIR = $(PORTINC) $(KERNINC) $(TESTINC) \
          $(HALINC) $(PLATFORMINC) $(BOARDINC) \
          $(CHIBIOS)/os/various \
-         ../
+         $(CHIBIOS)/os/various/cpp_wrappers \
+         $(RTCANINC) $(RTCANPLATFORMINC) \
+         $(R2P)/Various/src \
+         $(R2MWINC) $(R2MW)/../Various
 
 #
 # Project, sources and paths

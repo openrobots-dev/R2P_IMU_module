@@ -79,6 +79,10 @@ typedef struct {
   int16_t z;
 } mag_data_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int lsm303_acc_init(I2CDriver *i2cp);
 void lsm303_acc_update(I2CDriver *i2cp);
 void lsm303_acc_int1_cb(EXTDriver *extp, expchannel_t channel);
@@ -88,5 +92,9 @@ int lsm303_mag_init(I2CDriver *i2cp);
 void lsm303_mag_update(I2CDriver *i2cp);
 void lsm303_mag_drdy_cb(EXTDriver *extp, expchannel_t channel);
 Thread *magRun(I2CDriver *i2cp, tprio_t prio);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LSM303_H_ */

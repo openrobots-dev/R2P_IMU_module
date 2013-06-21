@@ -183,9 +183,7 @@ static msg_t l3g4200d_update_thread(void *p) {
 
     /* If data ready, update all axis.*/
     if (msg == GYRO_DATA_READY) {
-      palClearPad(LED_GPIO, LED2);
       l3g4200d_update(spip);
-      palSetPad(LED_GPIO, LED2);
     }
   }
 
