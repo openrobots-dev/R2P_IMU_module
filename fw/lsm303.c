@@ -76,6 +76,7 @@ void lsm303_acc_update(I2CDriver *i2cp) {
     palClearPad(LED_GPIO, LED2);
     palClearPad(LED_GPIO, LED3);
     palClearPad(LED_GPIO, LED4);
+    chSysHalt();
     while (1);
   }
 
@@ -95,6 +96,7 @@ void lsm303_acc_update(I2CDriver *i2cp) {
     palClearPad(LED_GPIO, LED2);
     palClearPad(LED_GPIO, LED3);
     palClearPad(LED_GPIO, LED4);
+    chSysHalt();
     while (1);
   }
 

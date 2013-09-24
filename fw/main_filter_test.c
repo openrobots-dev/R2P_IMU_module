@@ -39,10 +39,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "madgwick.h"
 #include "mahony.h"
 
-#define ACC_ZERO -40
+#define ACC_ZERO 38
 #define ACC2GRAD 20.0
 
-#define GYRO_ZERO -80
+#define GYRO_ZERO 3
 #define GYRO2GRAD -0.0175
 
 #define WA_SIZE_256B      THD_WA_SIZE(256)
@@ -669,8 +669,8 @@ float complemetary_filter_update(uint16_t period) {
 	float gyro_rate = 0;
 	static float angle;
 
-	acc_angle = (acc_data.x - ACC_ZERO) / ACC2GRAD;
-	gyro_rate = (gyro_data.z - GYRO_ZERO) * GYRO2GRAD;
+	acc_angle = ((float)acc_data.y - ACC_ZERO) / ACC2GRAD;
+	gyro_rate = ((float)gyro_data.x - GYRO_ZERO) * GYRO2GRAD;
 	angle = (0.98) * (angle + (gyro_rate * dt) + (0.02 * acc_angle));
 
 	return angle;

@@ -134,18 +134,44 @@ extern acc_data_t acc_data;
 extern mag_data_t mag_data;
 
 /*
- * Red LED blinker thread, times are in milliseconds.
+ * LED blinker thread, times are in milliseconds.
  */
-static WORKING_AREA(waThread1, 128);
-static msg_t Thread1(void *arg) {
+static WORKING_AREA(wa_blinker_thread, 128);
+static msg_t blinker_thread(void *arg) {
 
 	(void) arg;
-
 	chRegSetThreadName("blinker");
+
 	while (TRUE) {
-		palTogglePad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(500);
+		switch (RTCAND1.state) {
+		case RTCAN_MASTER:
+			palClearPad(LED_GPIO, LED1);
+			chThdSleepMilliseconds(200);
+			palSetPad(LED_GPIO, LED1);
+			chThdSleepMilliseconds(100);
+			palClearPad(LED_GPIO, LED1);
+			chThdSleepMilliseconds(200);
+			palSetPad(LED_GPIO, LED1);
+			chThdSleepMilliseconds(500);
+			break;
+		case RTCAN_SYNCING:
+			palTogglePad(LED_GPIO, LED1);
+			chThdSleepMilliseconds(100);
+			break;
+		case RTCAN_SLAVE:
+			palTogglePad(LED_GPIO, LED1);
+			chThdSleepMilliseconds(500);
+			break;
+		case RTCAN_ERROR:
+			palTogglePad(LED_GPIO, LED4);
+			chThdSleepMilliseconds(200);
+			break;
+		default:
+			chThdSleepMilliseconds(100);
+			break;
+		}
 	}
+
 	return 0;
 }
 
@@ -170,6 +196,11 @@ static msg_t PublisherRawThread(void *arg) {
 		return 0;
 	}
 
+	// FIXME
+	RemoteSubscriberT<tIMURaw9, 5> rsub("IMURaw");
+	rsub.id(IMURAW9_ID | stm32_id8());
+	rsub.subscribe(&pub);
+
 	time = chTimeNow();
 	while (TRUE) {
 		msg = pub.alloc();
@@ -181,7 +212,8 @@ static msg_t PublisherRawThread(void *arg) {
 			msg->acc_x = acc_data.x;
 			msg->acc_y = acc_data.y;
 			msg->acc_z = acc_data.z;
-			msg->mag_x = mag_data.x;
+			msg->mag_x = mag_data.x
+					;
 			msg->mag_y = mag_data.y;
 			msg->mag_z = mag_data.z;
 			pub.broadcast(msg);
@@ -194,20 +226,6 @@ static msg_t PublisherRawThread(void *arg) {
 	return 0;
 }
 
-// FIXME
-RemoteSubscriberT<tIMURaw9, 5> rsub("IMURaw");
-
-void remote_sub(const char * topic) {
-	Middleware & mw = Middleware::instance();
-	LocalPublisher * pub;
-
-	pub = mw.findLocalPublisher(topic);
-
-	if (pub) {
-		rsub.id(IMURAW9_ID);
-		rsub.subscribe(pub);
-	}
-}
 
 /*
  * Application entry point.
@@ -245,15 +263,15 @@ int main(void) {
 	spiStart(&SPI_DRIVER, &spi1cfg);
 
 	/*
+	 * Creates the blinker thread.
+	 */
+	chThdCreateStatic(wa_blinker_thread, sizeof(wa_blinker_thread), NORMALPRIO, blinker_thread, NULL);
+
+	/*
 	 * Activates the RTCAN driver.
 	 */
 	rtcanInit();
 	rtcanStart(&RTCAND1, &rtcan_config);
-
-	/*
-	 * Creates the blinker thread.
-	 */
-	chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
 	chThdSleepMilliseconds(100);
 
@@ -271,8 +289,6 @@ int main(void) {
 			NULL);
 
 	chThdSleepMilliseconds(100);
-
-	remote_sub("IMURaw");
 
 	/*
 	 * Normal main() thread activity, in this demo it does nothing except

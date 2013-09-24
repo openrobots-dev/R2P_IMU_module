@@ -98,21 +98,18 @@ CSRC = $(PORTSRC) \
 # setting.
 CPPSRC += $(CHIBIOS)/os/various/cpp_wrappers/ch.cpp $(R2MWCPPSRC)
 
-ifeq ($(TEST),blinking_led)
+ifeq ($(TEST),)
+  CPPSRC += main.cpp
+else ifeq ($(TEST),blinking_led)
   CSRC += main_blinking_led.c
-endif
-
-ifeq ($(TEST),hardware_test)
+else ifeq ($(TEST),hardware_test)
   CSRC += main_hardware_test.c
-endif
-
-ifeq ($(TEST),filter_test)
+else ifeq ($(TEST),filter_test)
   CSRC += main_filter_test.c
-endif
-
-
-ifeq ($(TEST),middleware_test)
+else ifeq ($(TEST),middleware_test)
   CPPSRC += main_middleware_test.cpp
+else ifeq ($(TEST),tiltone)
+  CPPSRC += main_tiltone.cpp
 endif
 
 # C sources to be compiled in ARM mode regardless of the global setting.
@@ -192,7 +189,7 @@ CPPWARN = -Wall -Wextra
 #
 
 # List all default C defines here, like -D_DEBUG=1
-DDEFS = -Dstrcasecmp=strcmp -DPORT_INT_REQUIRED_STACK=32
+DDEFS = -Dstrcasecmp=strcmp -DPORT_INT_REQUIRED_STACK=128 -DRTCAN_ISMASTER
 
 # List all default ASM defines here, like -D_DEBUG=1
 DADEFS =
