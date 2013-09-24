@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O0 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -fomit-frame-pointer -O0 -ggdb
 endif
 
 # C specific options here (added to USE_OPT).
@@ -15,12 +15,12 @@ endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -fno-rtti -fno-exceptions
+  USE_CPPOPT = -fno-rtti -fno-exceptions -fno-threadsafe-statics
 endif
 
 # Enable this if you want the linker to remove unused code and data
 ifeq ($(USE_LINK_GC),)
-  USE_LINK_GC = yes
+  USE_LINK_GC = no
 endif
 
 # If enabled, this option allows to compile the application in THUMB mode.
@@ -58,11 +58,8 @@ endif
 PROJECT = ch
 
 # Imported source files and paths
-CHIBIOS = ../../ChibiOS
-RTCAN = ../../RTCAN
-R2MW = ../../Middleware
-
-include ./board.mk
+include ./paths.mk
+include $(BOARD)/board.mk
 include $(CHIBIOS)/os/hal/platforms/STM32F1xx/platform.mk
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/ports/GCC/ARMCMx/STM32F1xx/port.mk
@@ -70,46 +67,47 @@ include $(CHIBIOS)/os/kernel/kernel.mk
 include $(CHIBIOS)/test/test.mk
 include $(RTCAN)/platforms/STM32/platform.mk
 include $(RTCAN)/RTCAN.mk
-include $(R2MW)/MW.mk
+include $(R2P)/r2p.mk
+include $(R2P)/port/chibios/port.mk
 
 # Define linker script file here
-LDSCRIPT= $(PORTLD)/STM32F103xB.ld
+LDSCRIPT= ./STM32F103xB_bootloader.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(PORTSRC) \
        $(KERNSRC) \
-       $(TESTSRC) \
        $(HALSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
-       $(CHIBIOS)/os/various/chprintf.c \
        $(CHIBIOS)/os/various/evtimer.c \
-       $(CHIBIOS)/os/various/shell.c \
        $(CHIBIOS)/os/various/syscalls.c \
        $(RTCANSRC) \
-       $(RTCANPLATFORMSRC) \
-       l3g4200d.c \
-       lsm303.c \
-       madgwick.c \
-       mahony.c
+       $(RTCANPLATFORMSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC += $(CHIBIOS)/os/various/cpp_wrappers/ch.cpp $(R2MWCPPSRC)
+CPPSRC = $(R2PSRC)
+
+ifeq ($(TEST),debug_test)
+  CPPSRC += chnew.cpp main_debug_test.cpp
+endif
+
+ifeq ($(TEST),rtcan_pub_test)
+  CPPSRC += chnew.cpp main_rtcan_pub_test.cpp
+#  UDEFS = -DRTCAN_ISMASTER
+endif
+
+ifeq ($(TEST),rtcan_sub_test)
+  CPPSRC += chnew.cpp main_rtcan_sub_test.cpp
+endif
+
+ifeq ($(TEST),pubsub_test)
+  CPPSRC += main_pubsub_test.cpp chnew.cpp
+endif
 
 ifeq ($(TEST),)
-  CPPSRC += main.cpp
-else ifeq ($(TEST),blinking_led)
-  CSRC += main_blinking_led.c
-else ifeq ($(TEST),hardware_test)
-  CSRC += main_hardware_test.c
-else ifeq ($(TEST),filter_test)
-  CSRC += main_filter_test.c
-else ifeq ($(TEST),middleware_test)
-  CPPSRC += main_middleware_test.cpp
-else ifeq ($(TEST),tiltone)
-  CPPSRC += main_tiltone.cpp
+  CPPSRC += main.cpp chnew.cpp
 endif
 
 # C sources to be compiled in ARM mode regardless of the global setting.
@@ -135,13 +133,11 @@ TCPPSRC =
 # List ASM source files here
 ASMSRC = $(PORTASM)
 
-INCDIR = $(PORTINC) $(KERNINC) $(TESTINC) \
+INCDIR = $(PORTINC) $(KERNINC) \
          $(HALINC) $(PLATFORMINC) $(BOARDINC) \
          $(CHIBIOS)/os/various \
-         $(CHIBIOS)/os/various/cpp_wrappers \
          $(RTCANINC) $(RTCANPLATFORMINC) \
-         $(R2P)/Various/src \
-         $(R2MWINC) $(R2MW)/../Various
+         $(R2PINC)
 
 #
 # Project, sources and paths
@@ -189,7 +185,7 @@ CPPWARN = -Wall -Wextra
 #
 
 # List all default C defines here, like -D_DEBUG=1
-DDEFS = -Dstrcasecmp=strcmp -DPORT_INT_REQUIRED_STACK=128 -DRTCAN_ISMASTER
+DDEFS = -DPORT_INT_REQUIRED_STACK=128
 
 # List all default ASM defines here, like -D_DEBUG=1
 DADEFS =
@@ -212,19 +208,19 @@ DLIBS = -lm
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
+UDEFS += -DR2MW_TEST -DR2P_MODULE_NAME='"$(R2P_MODULE_NAME)"'
 
 # Define ASM defines here
-UADEFS =
+UADEFS +=
 
 # List all user directories here
-UINCDIR =
+UINCDIR +=
 
 # List the user directory to look for the libraries here
-ULIBDIR =
+ULIBDIR +=
 
 # List all user libraries here
-ULIBS =
+ULIBS += 
 
 #
 # End of user defines
