@@ -46,6 +46,14 @@ ifeq ($(USE_FWLIB),)
   USE_FWLIB = no
 endif
 
+ifeq ($(R2P_USE_DEBUGTRANSPORT),)
+  R2P_USE_DEBUGTRANSPORT = yes
+endif
+
+ifeq ($(R2P_USE_RTCANTRANSPORT),)
+  R2P_USE_RTCANTRANSPORT = yes
+endif
+
 #
 # Architecture or project specific options
 ##############################################################################
@@ -83,7 +91,11 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
        $(RTCANSRC) \
-       $(RTCANPLATFORMSRC)
+       $(RTCANPLATFORMSRC) \
+       l3g4200d.c \
+       lsm303.c \
+       madgwick.c \
+       mahony.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -208,7 +220,7 @@ DLIBS = -lm
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS += -DR2MW_TEST -DR2P_MODULE_NAME='"$(R2P_MODULE_NAME)"'
+UDEFS += -DR2MW_TEST -DR2P_MODULE_NAME='"$(R2P_MODULE_NAME)"' #-DRTCAN_ISMASTER
 
 # Define ASM defines here
 UADEFS +=
