@@ -151,6 +151,8 @@
 extern "C" {
 #endif
 void boardInit(void);
+void * led2gpio(unsigned led_id);
+unsigned led2pin(unsigned led_id);
 #ifdef __cplusplus
 }
 #endif

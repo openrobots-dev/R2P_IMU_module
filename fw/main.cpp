@@ -19,29 +19,15 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "l3g4200d.h"
-#include "lsm303.h"
-#include "madgwick.h"
-#include "mahony.h"
-
 #ifndef R2P_MODULE_NAME
 #define R2P_MODULE_NAME "R2PMODX"
 #endif
 
-#define ACC_ZERO -40
-#define ACC2GRAD 20.0
-
-#define GYRO_ZERO -80
-#define GYRO2GRAD -0.0175
-
-Thread *gyrotp = NULL;
-Thread *acctp = NULL;
-Thread *magtp = NULL;
-
-struct TiltMsg: public r2p::Message {
-	float angle;
-	float rate;
-}R2P_PACKED;
+struct LedMsg: public r2p::Message {
+	uint32_t led;
+	uint32_t value;
+	uint32_t cnt;
+} R2P_PACKED;
 
 extern "C" {
 void *__dso_handle;
@@ -76,106 +62,32 @@ r2p::Middleware r2p::Middleware::instance(R2P_MODULE_NAME, "BOOT_"R2P_MODULE_NAM
 
 RTCANConfig rtcan_config = { 1000000, 100, 60 };
 
-
 /*===========================================================================*/
-/* I2C related.                                                              */
+/* Application threads.                                                      */
 /*===========================================================================*/
-
-/* I2C1 */
-//static const I2CConfig i2c1cfg =
-//  {OPMODE_I2C, 400000, FAST_DUTY_CYCLE_16_9, };
-/* I2C1 */
-static const I2CConfig i2c1cfg = { OPMODE_I2C, 400000, FAST_DUTY_CYCLE_2 };
-
-/*===========================================================================*/
-/* SPI related.                                                              */
-/*===========================================================================*/
-
-/* SPI1 configuration
- * Speed 9MHz, CPHA=1, CPOL=1, 8bits frames, MSb transmitted first.
- */
-static const SPIConfig spi1cfg = { NULL, /* HW dependent part.*/GYRO_GPIO,
-		GYRO_CS, SPI_CR1_BR_1 | SPI_CR1_CPOL | SPI_CR1_CPHA };
-
-/*===========================================================================*/
-/* EXTI related.                                                             */
-/*===========================================================================*/
-
-static const EXTConfig extcfg = { { { EXT_CH_MODE_DISABLED, NULL }, {
-		EXT_CH_MODE_RISING_EDGE | EXT_MODE_GPIOB, l3g4200d_drdy_callback }, {
-		EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MODE_DISABLED, NULL }, {
-		EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MODE_FALLING_EDGE
-		| EXT_MODE_GPIOB, lsm303_mag_drdy_cb }, { EXT_CH_MODE_RISING_EDGE
-		| EXT_MODE_GPIOB, lsm303_acc_int1_cb }, { EXT_CH_MODE_DISABLED, NULL },
-		{ EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MODE_DISABLED, NULL }, {
-				EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MODE_DISABLED, NULL }, {
-				EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MODE_DISABLED, NULL }, {
-				EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MODE_DISABLED, NULL } } };
 
 /*
- * Simple complementary filter.
+ * Led subscriber node
  */
-extern acc_data_t acc_data;
-extern gyro_data_t gyro_data;
+bool callback(const LedMsg &msg) {
 
-float complemetary_filter_update(uint16_t period) {
-	const float dt = period / 1000.0;
-	float acc_angle = 0;
-	float gyro_rate = 0;
-	static float angle;
+	palWritePad((GPIO_TypeDef *)led2gpio(msg.led), led2pin(msg.led), msg.value);
 
-	acc_angle = (acc_data.x - ACC_ZERO) / ACC2GRAD;
-	gyro_rate = (gyro_data.z - GYRO_ZERO) * GYRO2GRAD;
-	angle = (0.98) * (angle + (gyro_rate * dt) + (0.02 * acc_angle));
-
-	return angle;
+	return true;
 }
 
-/*
- * Tilt publisher thread
- */
-static msg_t tilt_node(void *arg) {
-	r2p::Node node("tilt");
-	r2p::Publisher<TiltMsg> tilt_pub;
-	systime_t time = chTimeNow();
-	const uint16_t period = 500;
+msg_t ledsub_node(void * arg) {
+	LedMsg sub_msgbuf[5], *sub_queue[5];
+	r2p::Node node("ledpub");
+    r2p::Subscriber<LedMsg> sub(sub_queue, 5, callback);
+	char * tnp = (char *) arg;
 
-	node.advertise(tilt_pub, "tilt");
+	chRegSetThreadName("ledsub");
 
-	chThdSleepMilliseconds(100);
+	node.subscribe(sub, tnp, sub_msgbuf);
 
 	for (;;) {
-		TiltMsg *msgp;
-		if (tilt_pub.alloc(msgp)) {
-			msgp->angle = complemetary_filter_update(period);
-			msgp->rate = (gyro_data.z - GYRO_ZERO) * GYRO2GRAD;
-			if (!tilt_pub.publish(*msgp)) {
-				chSysHalt();
-			}
-		}
-
-		time += MS2ST(period);
-		chThdSleepUntil(time);
-	}
-	return CH_SUCCESS;
-}
-
-/*
- * Balance node.
- */
-msg_t balance_node(void *) {
-	TiltMsg sub_msgbuf[5], *sub_queue[5];
-	r2p::Node node("balance");
-	r2p::Subscriber<TiltMsg> sub(sub_queue, 5);
-	TiltMsg * msgp;
-
-	node.subscribe(sub, "tilt", sub_msgbuf);
-
-	for (;;) {
-		node.spin();
-		sub.fetch(msgp);
-		palTogglePad(LED_GPIO, LED2);
-		sub.release(*msgp);
+		node.spin(1000);
 	}
 	return CH_SUCCESS;
 }
@@ -220,9 +132,6 @@ int main(void) {
 	chSysInit();
 
 	sdStart(&SD2, NULL);
-	extStart(&EXTD1, &extcfg);
-	i2cStart(&I2C_DRIVER, &i2c1cfg);
-	spiStart(&SPI_DRIVER, &spi1cfg);
 
 	r2p::Thread::set_priority(r2p::Thread::HIGHEST);
 	r2p::Middleware::instance.initialize(wa_info, sizeof(wa_info), r2p::Thread::LOWEST);
@@ -233,15 +142,8 @@ int main(void) {
 			r2p::Thread::LOWEST + 10);
 
 	r2p::Thread::set_priority(r2p::Thread::NORMAL);
-/*
-	if (gyrotp == NULL)
-		gyrotp = gyroRun(&SPI_DRIVER, NORMALPRIO);
-	if (acctp == NULL)
-		acctp = accRun(&I2C_DRIVER, NORMALPRIO);
-*/
 
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, tilt_node, NULL);
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, balance_node, NULL);
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, ledsub_node, (void *)"leds");
 
 	for (;;) {
 		rtcan_blinker();

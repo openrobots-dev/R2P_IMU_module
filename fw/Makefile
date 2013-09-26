@@ -91,36 +91,13 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
        $(RTCANSRC) \
-       $(RTCANPLATFORMSRC) \
-       l3g4200d.c \
-       lsm303.c \
-       madgwick.c \
-       mahony.c
+       $(RTCANPLATFORMSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC = $(R2PSRC)
-
-ifeq ($(TEST),debug_test)
-  CPPSRC += chnew.cpp main_debug_test.cpp
-endif
-
-ifeq ($(TEST),rtcan_pub_test)
-  CPPSRC += chnew.cpp main_rtcan_pub_test.cpp
-#  UDEFS = -DRTCAN_ISMASTER
-endif
-
-ifeq ($(TEST),rtcan_sub_test)
-  CPPSRC += chnew.cpp main_rtcan_sub_test.cpp
-endif
-
-ifeq ($(TEST),pubsub_test)
-  CPPSRC += main_pubsub_test.cpp chnew.cpp
-endif
-
-ifeq ($(TEST),)
-  CPPSRC += main.cpp chnew.cpp
-endif
+CPPSRC = $(R2PSRC) \
+         chnew.cpp \
+         main.cpp
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
