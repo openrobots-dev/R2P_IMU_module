@@ -53,10 +53,10 @@ static WORKING_AREA(wa_rx_dbgtra, 1024);
 static WORKING_AREA(wa_tx_dbgtra, 1024);
 
 static char dbgtra_namebuf[64];
-static r2p::DebugTransport dbgtra(reinterpret_cast<BaseChannel *>(&SD2), dbgtra_namebuf);
+//static r2p::DebugTransport dbgtra("dbg", reinterpret_cast<BaseChannel *>(&SD2), dbgtra_namebuf);
 
 // RTCAN transport
-static r2p::RTCANTransport rtcantra(RTCAND1);
+//static r2p::RTCANTransport rtcantra(RTCAND1);
 
 r2p::Middleware r2p::Middleware::instance(R2P_MODULE_NAME, "BOOT_"R2P_MODULE_NAME);
 
@@ -136,14 +136,14 @@ int main(void) {
 	r2p::Thread::set_priority(r2p::Thread::HIGHEST);
 	r2p::Middleware::instance.initialize(wa_info, sizeof(wa_info), r2p::Thread::LOWEST);
 
-	rtcantra.initialize(rtcan_config);
+//	rtcantra.initialize(rtcan_config);
 
-	dbgtra.initialize(wa_rx_dbgtra, sizeof(wa_rx_dbgtra), r2p::Thread::LOWEST + 11, wa_tx_dbgtra, sizeof(wa_tx_dbgtra),
-			r2p::Thread::LOWEST + 10);
+//	dbgtra.initialize(wa_rx_dbgtra, sizeof(wa_rx_dbgtra), r2p::Thread::LOWEST + 11, wa_tx_dbgtra, sizeof(wa_tx_dbgtra),
+//			r2p::Thread::LOWEST + 10);
 
 	r2p::Thread::set_priority(r2p::Thread::NORMAL);
 
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, ledsub_node, (void *)"leds");
+//	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, ledsub_node, (void *)"leds");
 
 	for (;;) {
 		rtcan_blinker();
