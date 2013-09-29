@@ -15,6 +15,10 @@
 #include "r2p/transport/DebugTransport.hpp"
 #include "r2p/transport/RTCANTransport.hpp"
 
+#include "r2p/node/led.hpp"
+
+#include "r2p/msg/motor.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -23,11 +27,6 @@
 #define R2P_MODULE_NAME "R2PMODX"
 #endif
 
-struct LedMsg: public r2p::Message {
-	uint32_t led;
-	uint32_t value;
-	uint32_t cnt;
-} R2P_PACKED;
 
 extern "C" {
 void *__dso_handle;
@@ -49,77 +48,53 @@ int _getpid() {
 } // extern "C"
 
 static WORKING_AREA(wa_info, 2048);
-static WORKING_AREA(wa_rx_dbgtra, 1024);
-static WORKING_AREA(wa_tx_dbgtra, 1024);
-
-static char dbgtra_namebuf[64];
-//static r2p::DebugTransport dbgtra("dbg", reinterpret_cast<BaseChannel *>(&SD2), dbgtra_namebuf);
 
 // RTCAN transport
-//static r2p::RTCANTransport rtcantra(RTCAND1);
+static r2p::RTCANTransport rtcantra(RTCAND1);
 
 r2p::Middleware r2p::Middleware::instance(R2P_MODULE_NAME, "BOOT_"R2P_MODULE_NAME);
 
 RTCANConfig rtcan_config = { 1000000, 100, 60 };
 
-/*===========================================================================*/
-/* Application threads.                                                      */
-/*===========================================================================*/
-
 /*
- * Led subscriber node
+ * Balance control node
  */
-bool callback(const LedMsg &msg) {
+msg_t balance_node(void *arg) {
+	r2p::Node node("balance");
+	r2p::Publisher<r2p::PWM2Msg> pwm2_pub;
+	int16_t pwm = 0;
+	int16_t step = 10;
 
-	palWritePad((GPIO_TypeDef *)led2gpio(msg.led), led2pin(msg.led), msg.value);
+	(void)arg;
+	chRegSetThreadName("balance");
 
-	return true;
-}
-
-msg_t ledsub_node(void * arg) {
-	LedMsg sub_msgbuf[5], *sub_queue[5];
-	r2p::Node node("ledpub");
-    r2p::Subscriber<LedMsg> sub(sub_queue, 5, callback);
-	char * tnp = (char *) arg;
-
-	chRegSetThreadName("ledsub");
-
-	node.subscribe(sub, tnp, sub_msgbuf);
+	node.advertise(pwm2_pub, "pwm2");
 
 	for (;;) {
-		node.spin(1000);
+		r2p::PWM2Msg *msgp;
+		if (pwm2_pub.alloc(msgp)) {
+			if (step > 0) {
+				msgp->pwm1 = pwm;
+				msgp->pwm2 = 0;
+			} else {
+				msgp->pwm1 = 0;
+				msgp->pwm2 = pwm;
+
+			}
+
+			pwm2_pub.publish(*msgp);
+
+			if ((pwm >= 1000) || (pwm <= -1000)) {
+				step = -step;
+			}
+
+			pwm += step;
+
+		}
+
+		r2p::Thread::sleep(r2p::Time::ms(10));
 	}
 	return CH_SUCCESS;
-}
-
-void rtcan_blinker(void) {
-	switch (RTCAND1.state) {
-	case RTCAN_MASTER:
-		palClearPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(200);
-		palSetPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(100);
-		palClearPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(200);
-		palSetPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(500);
-		break;
-	case RTCAN_SYNCING:
-		palTogglePad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(100);
-		break;
-	case RTCAN_SLAVE:
-		palTogglePad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(500);
-		break;
-	case RTCAN_ERROR:
-		palTogglePad(LED_GPIO, LED4);
-		chThdSleepMilliseconds(200);
-		break;
-	default:
-		chThdSleepMilliseconds(100);
-		break;
-	}
 }
 
 /*
@@ -136,17 +111,19 @@ int main(void) {
 	r2p::Thread::set_priority(r2p::Thread::HIGHEST);
 	r2p::Middleware::instance.initialize(wa_info, sizeof(wa_info), r2p::Thread::LOWEST);
 
-//	rtcantra.initialize(rtcan_config);
-
-//	dbgtra.initialize(wa_rx_dbgtra, sizeof(wa_rx_dbgtra), r2p::Thread::LOWEST + 11, wa_tx_dbgtra, sizeof(wa_tx_dbgtra),
-//			r2p::Thread::LOWEST + 10);
+	rtcantra.initialize(rtcan_config);
 
 	r2p::Thread::set_priority(r2p::Thread::NORMAL);
 
-//	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, ledsub_node, (void *)"leds");
+	uint8_t led = 1;
+    r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, r2p::ledpub_node, (void *)&led);
+    r2p::Thread::sleep(r2p::Time::ms(100));
+    r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, r2p::ledsub_node, NULL);
+    r2p::Thread::sleep(r2p::Time::ms(100));
+    r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, balance_node, NULL);
 
 	for (;;) {
-		rtcan_blinker();
+		r2p::Thread::sleep(r2p::Time::ms(500));
 	}
 	return CH_SUCCESS;
 }
