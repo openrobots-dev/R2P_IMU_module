@@ -20,7 +20,7 @@ endif
 
 # Enable this if you want the linker to remove unused code and data
 ifeq ($(USE_LINK_GC),)
-  USE_LINK_GC = no
+  USE_LINK_GC = yes
 endif
 
 # If enabled, this option allows to compile the application in THUMB mode.
@@ -47,7 +47,7 @@ ifeq ($(USE_FWLIB),)
 endif
 
 ifeq ($(R2P_USE_DEBUGTRANSPORT),)
-  R2P_USE_DEBUGTRANSPORT = yes
+  R2P_USE_DEBUGTRANSPORT = no
 endif
 
 ifeq ($(R2P_USE_RTCANTRANSPORT),)
@@ -91,7 +91,11 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
        $(RTCANSRC) \
-       $(RTCANPLATFORMSRC)
+       $(RTCANPLATFORMSRC) \
+       l3g4200d.c \
+       lsm303.c \
+       mahony.c \
+       madgwick.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -198,7 +202,7 @@ DLIBS = -lm
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS += -DR2MW_TEST -DR2P_MODULE_NAME='"$(R2P_MODULE_NAME)"' -DRTCAN_ISMASTER
+UDEFS += -DR2MW_TEST -DR2P_MODULE_NAME='"$(R2P_MODULE_NAME)"' #-DR2P_ASSERT=""
 
 # Define ASM defines here
 UADEFS +=
