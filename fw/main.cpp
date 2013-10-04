@@ -25,6 +25,8 @@
 #include <mahony.h>
 #include <madgwick.h>
 
+#include <pid.hpp>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -70,14 +72,19 @@ msg_t balance_node(void *arg) {
 	r2p::Subscriber<r2p::TiltMsg> tilt_sub(sub_queue, 2);
 	r2p::Publisher<r2p::PWM2Msg> pwm2_pub;
 	int32_t pwm = 0;
+	systime_t time;
 
 	(void) arg;
 	chRegSetThreadName("balance");
 
 	node.advertise(pwm2_pub, "pwm2");
-	r2p::Thread::sleep(r2p::Time::ms(100));
+	r2p::Thread::sleep(r2p::Time::ms(43));
 	node.subscribe(tilt_sub, "tilt", sub_msgbuf);
-	r2p::Thread::sleep(r2p::Time::ms(100));
+	r2p::Thread::sleep(r2p::Time::ms(22));
+
+	PID<float> pid(400, 2000, 400, -4000, 4000);
+	pid.set(-0.2);
+
 
 	for (;;) {
 		r2p::TiltMsg *tiltp;
@@ -87,16 +94,10 @@ msg_t balance_node(void *arg) {
 			chThdSleepMilliseconds(10);
 		};
 
-		pwm = (tiltp->angle + 0.1563) * 40000;
+		time = chTimeNow();
+
+		pwm = -pid.update(tiltp->angle * 57.29578, 0.01); //rad2grad
 		tilt_sub.release(*tiltp);
-
-		if (pwm > 4000) {
-			pwm = 4000;
-		}
-
-		if (pwm < -4000) {
-			pwm = -4000;
-		}
 
 		if (pwm2_pub.alloc(pwmp)) {
 			pwmp->pwm1 = -pwm;
@@ -104,7 +105,8 @@ msg_t balance_node(void *arg) {
 			pwm2_pub.publish(*pwmp);
 		}
 
-		r2p::Thread::sleep(r2p::Time::ms(10));
+		time += MS2ST(10);
+		chThdSleepUntil(time);
 	}
 	return CH_SUCCESS;
 }
@@ -191,8 +193,8 @@ int main(void) {
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 1, r2p::ledsub_node, NULL);
 	r2p::Thread::sleep(r2p::Time::ms(100));
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 2, madgwick_node, NULL);
-	r2p::Thread::sleep(r2p::Time::ms(100));
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 2, balance_node, NULL);
+	r2p::Thread::sleep(r2p::Time::ms(2000));
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 2, balance_node, NULL);
 
 	for (;;) {
 		r2p::Thread::sleep(r2p::Time::ms(500));
