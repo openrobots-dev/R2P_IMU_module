@@ -112,7 +112,7 @@ msg_t balance_node(void *arg) {
 }
 
 /*
- * Balance control node
+ * Madgwick node
  */
 extern gyro_data_t gyro_data;
 extern acc_data_t acc_data;
