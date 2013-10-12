@@ -59,18 +59,21 @@ T PID<T>::update(T measure, T dt) {
 		/* conditional anti-windup: integrate only if error and setpoint have different sign */
 		if ((error >= 0) && (setpoint_ <= 0)) {
 			i_ += error * dt;
+			output += (ki_ * i_);
 		}
 	} else if (output < min_) {
 		output = min_;
 		/* conditional anti-windup: integrate only if error and setpoint have different sign */
 		if ((error >= 0) && (setpoint_ <= 0)) {
 			i_ += error * dt;
+			output += (ki_ * i_);
 		}
 	} else {
 		i_ += error * dt;
+		output += (ki_ * i_);
 	}
 
-	output += (ki_ * i_);
+
 
 	/* derivative term */
 	output += (kd_ * (error - d_));
