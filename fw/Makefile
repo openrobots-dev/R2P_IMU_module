@@ -96,6 +96,7 @@ CSRC = $(PORTSRC) \
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CPPSRC = $(R2PSRC) \
+         $(R2PNODES)/led.cpp \
          chnew.cpp \
          main.cpp
 

@@ -1,8 +1,6 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "rtcan.h"
-
 #include <r2p/common.hpp>
 #include <r2p/Middleware.hpp>
 #include <r2p/Node.hpp>
@@ -12,22 +10,20 @@
 #include <r2p/Mutex.hpp>
 #include <r2p/NamingTraits.hpp>
 #include <r2p/Bootloader.hpp>
-#include "r2p/transport/DebugTransport.hpp"
-#include "r2p/transport/RTCANTransport.hpp"
+#include <r2p/transport/RTCANTransport.hpp>
+
+#include <r2p/node/led.hpp>
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #ifndef R2P_MODULE_NAME
-#define R2P_MODULE_NAME "R2PMODX"
+#define R2P_MODULE_NAME "R2P_IMU"
 #endif
 
-struct LedMsg: public r2p::Message {
-	uint32_t led;
-	uint32_t value;
-	uint32_t cnt;
-} R2P_PACKED;
+#define DGBTRA 0
+#define RTCANTRA 1
 
 extern "C" {
 void *__dso_handle;
@@ -49,78 +45,22 @@ int _getpid() {
 } // extern "C"
 
 static WORKING_AREA(wa_info, 2048);
-static WORKING_AREA(wa_rx_dbgtra, 1024);
-static WORKING_AREA(wa_tx_dbgtra, 1024);
-
-static char dbgtra_namebuf[64];
-//static r2p::DebugTransport dbgtra("dbg", reinterpret_cast<BaseChannel *>(&SD2), dbgtra_namebuf);
-
-// RTCAN transport
-//static r2p::RTCANTransport rtcantra(RTCAND1);
 
 r2p::Middleware r2p::Middleware::instance(R2P_MODULE_NAME, "BOOT_"R2P_MODULE_NAME);
 
+// Debug transport
+#if DGBTRA
+static WORKING_AREA(wa_rx_dbgtra, 1024);
+static WORKING_AREA(wa_tx_dbgtra, 1024);
+static char dbgtra_namebuf[64];
+static r2p::DebugTransport dbgtra("dbg", reinterpret_cast<BaseChannel *>(&SD2), dbgtra_namebuf);
+#endif
+
+// RTCAN transport
+#if RTCANTRA
+static r2p::RTCANTransport rtcantra(RTCAND1);
 RTCANConfig rtcan_config = { 1000000, 100, 60 };
-
-/*===========================================================================*/
-/* Application threads.                                                      */
-/*===========================================================================*/
-
-/*
- * Led subscriber node
- */
-bool callback(const LedMsg &msg) {
-
-	palWritePad((GPIO_TypeDef *)led2gpio(msg.led), led2pin(msg.led), msg.value);
-
-	return true;
-}
-
-msg_t ledsub_node(void * arg) {
-	LedMsg sub_msgbuf[5], *sub_queue[5];
-	r2p::Node node("ledpub");
-    r2p::Subscriber<LedMsg> sub(sub_queue, 5, callback);
-	char * tnp = (char *) arg;
-
-	chRegSetThreadName("ledsub");
-
-	node.subscribe(sub, tnp, sub_msgbuf);
-
-	for (;;) {
-		node.spin(1000);
-	}
-	return CH_SUCCESS;
-}
-
-void rtcan_blinker(void) {
-	switch (RTCAND1.state) {
-	case RTCAN_MASTER:
-		palClearPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(200);
-		palSetPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(100);
-		palClearPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(200);
-		palSetPad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(500);
-		break;
-	case RTCAN_SYNCING:
-		palTogglePad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(100);
-		break;
-	case RTCAN_SLAVE:
-		palTogglePad(LED_GPIO, LED1);
-		chThdSleepMilliseconds(500);
-		break;
-	case RTCAN_ERROR:
-		palTogglePad(LED_GPIO, LED4);
-		chThdSleepMilliseconds(200);
-		break;
-	default:
-		chThdSleepMilliseconds(100);
-		break;
-	}
-}
+#endif
 
 /*
  * Application entry point.
@@ -131,22 +71,25 @@ int main(void) {
 	halInit();
 	chSysInit();
 
-	sdStart(&SD2, NULL);
-
 	r2p::Thread::set_priority(r2p::Thread::HIGHEST);
 	r2p::Middleware::instance.initialize(wa_info, sizeof(wa_info), r2p::Thread::LOWEST);
 
-//	rtcantra.initialize(rtcan_config);
+#if RTCANTRA
+	rtcantra.initialize(rtcan_config);
+#endif
 
-//	dbgtra.initialize(wa_rx_dbgtra, sizeof(wa_rx_dbgtra), r2p::Thread::LOWEST + 11, wa_tx_dbgtra, sizeof(wa_tx_dbgtra),
-//			r2p::Thread::LOWEST + 10);
+#if DEBUGTRA
+	dbgtra.initialize(wa_rx_dbgtra, sizeof(wa_rx_dbgtra), r2p::Thread::LOWEST + 11, wa_tx_dbgtra, sizeof(wa_tx_dbgtra),
+			r2p::Thread::LOWEST + 10);
+#endif
 
-	r2p::Thread::set_priority(r2p::Thread::NORMAL);
+	unsigned int led = 1;
 
-//	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 1, ledsub_node, (void *)"leds");
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(256), NORMALPRIO, r2p::ledpub_node, (void *)&led);
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(256), NORMALPRIO, r2p::ledsub_node, NULL);
 
 	for (;;) {
-		rtcan_blinker();
+		r2p::Thread::sleep(r2p::Time::ms(500));
 	}
 	return CH_SUCCESS;
 }
