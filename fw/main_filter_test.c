@@ -53,6 +53,7 @@ static msg_t stream_acc_thread(void *arg);
 static msg_t stream_mag_thread(void *arg);
 static msg_t stream_raw_thread(void *arg);
 static msg_t stream_madgwick_thread(void *arg);
+static msg_t stream_madgwick_imu_thread(void *arg);
 static msg_t stream_madgwick_tilt_thread(void *arg);
 static msg_t stream_mahony_thread(void *arg);
 static msg_t stream_tilt_thread(void *arg);
@@ -311,6 +312,35 @@ static void cmd_stream_madgwick(BaseSequentialStream*chp, int argc,
 	return;
 }
 
+static void cmd_stream_madgwick_imu(BaseSequentialStream*chp, int argc,
+		char *argv[]) {
+	Thread *tp;
+
+	if (argc != 1) {
+		chprintf(chp, "Usage: smad <Hz>\r\n");
+		return;
+	}
+
+	period = (1000 / atoi(argv[0]));
+
+	if (gyrotp == NULL)
+		gyrotp = gyroRun(&SPI_DRIVER, NORMALPRIO);
+	if (acctp == NULL)
+		acctp = accRun(&I2C_DRIVER, NORMALPRIO);
+	if (magtp == NULL)
+		magtp = magRun(&I2C_DRIVER, NORMALPRIO);
+
+	tp = chThdCreateFromHeap(NULL, WA_SIZE_1K, NORMALPRIO,
+			stream_madgwick_imu_thread, (void *) &period);
+
+	if (tp == NULL) {
+		chprintf(chp, "out of memory\r\n");
+		return;
+	}
+
+	return;
+}
+
 static void cmd_stream_madgwick_tilt(BaseSequentialStream*chp, int argc,
 		char *argv[]) {
 	Thread *tp;
@@ -400,7 +430,7 @@ static const ShellCommand commands[] = { { "mem", cmd_mem }, { "threads",
 		cmd_threads }, { "test", cmd_test }, { "gyro", cmd_gyro }, { "acc",
 		cmd_acc }, { "mag", cmd_mag }, { "sg", cmd_stream_gyro }, { "sa",
 		cmd_stream_acc }, { "sm", cmd_stream_mag }, { "sraw", cmd_stream_raw },
-		{ "smad", cmd_stream_madgwick }, { "smadtilt", cmd_stream_madgwick_tilt }, { "smah", cmd_stream_mahony }, {
+		{ "smad", cmd_stream_madgwick }, { "smadimu", cmd_stream_madgwick_imu }, { "smadtilt", cmd_stream_madgwick_tilt }, { "smah", cmd_stream_mahony }, {
 				"stilt", cmd_stream_tilt }, { "reset", cmd_reset },
 		{ NULL, NULL } };
 
@@ -579,6 +609,39 @@ static msg_t stream_madgwick_thread(void *arg) {
 				((gyro_data.z - 10) / 57.143) * 3.141592 / 180.0,
 				(acc_data.x + 17) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 21) / 1000.0,
 				mx, my, mz);
+
+
+		getMadAttitude(&attitude_data);
+		chprintf((BaseSequentialStream*) &SERIAL_DRIVER, "%6d %f %f %f\r\n",
+				(int) time, attitude_data.roll, attitude_data.pitch,
+				attitude_data.yaw);
+		time += MS2ST(period);
+		chThdSleepUntil(time);
+	}
+
+	return 0;
+}
+
+/*
+ * Madgwick stream thread
+ */
+static msg_t stream_madgwick_imu_thread(void *arg) {
+	attitude_t attitude_data;
+	uint16_t period = *(uint16_t *) arg;
+	systime_t time = chTimeNow();
+
+	while (TRUE) {
+		/* V1 */
+//		MadgwickAHRSupdateIMU((-(gyro_data.x - 3) / 57.143) * 3.141592 / 180.0,
+//				(-(gyro_data.y - 107) / 57.143) * 3.141592 / 180.0,
+//				((gyro_data.z + 118) / 57.143) * 3.141592 / 180.0,
+//				(acc_data.x + 17) / 1000.0, (acc_data.y + 9)/ 1000.0, (acc_data.z - 0) / 969.0);
+
+		/* V2 */
+		MadgwickAHRSupdateIMU(((gyro_data.x + 15) / 57.143) * 3.141592 / 180.0,
+				((gyro_data.y + 25) / 57.143) * 3.141592 / 180.0,
+				((gyro_data.z - 10) / 57.143) * 3.141592 / 180.0,
+				(acc_data.x + 17) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 21) / 1000.0);
 
 		getMadAttitude(&attitude_data);
 		chprintf((BaseSequentialStream*) &SERIAL_DRIVER, "%6d %f %f %f\r\n",
