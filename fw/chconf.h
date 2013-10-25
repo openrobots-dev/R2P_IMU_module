@@ -199,7 +199,7 @@
  * @note    Requires @p CH_USE_MUTEXES.
  */
 #if !defined(CH_USE_CONDVARS) || defined(__DOXYGEN__)
-#define CH_USE_CONDVARS                 FALSE
+#define CH_USE_CONDVARS                 TRUE
 #endif
 
 /**
@@ -421,7 +421,7 @@
  * @note    The default is @p FALSE.
  */
 #if !defined(CH_DBG_FILL_THREADS) || defined(__DOXYGEN__)
-#define CH_DBG_FILL_THREADS             FALSE
+#define CH_DBG_FILL_THREADS             TRUE
 #endif
 
 /**
@@ -498,7 +498,7 @@
  */
 #if !defined(IDLE_LOOP_HOOK) || defined(__DOXYGEN__)
 #define IDLE_LOOP_HOOK() {                                                  \
-  /* Idle loop code here.*/                                                 \
+  chThdYield();/* Idle loop code here.*/                                                 \
 }
 #endif
 

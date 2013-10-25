@@ -54,6 +54,10 @@ ifeq ($(R2P_USE_RTCANTRANSPORT),)
   R2P_USE_RTCANTRANSPORT = yes
 endif
 
+ifeq ($(R2P_USE_TRACK_SOURCES),)
+  R2P_USE_TRACK_SOURCES = no
+endif
+
 #
 # Architecture or project specific options
 ##############################################################################
@@ -198,7 +202,7 @@ DLIBS = -lm
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS += -DR2MW_TEST -DR2P_MODULE_NAME='"$(R2P_MODULE_NAME)"' #-DRTCAN_ISMASTER
+UDEFS += -DR2MW_TEST #-DRTCAN_ISMASTER
 
 # Define ASM defines here
 UADEFS +=
