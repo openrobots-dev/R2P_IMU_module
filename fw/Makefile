@@ -66,8 +66,8 @@ endif
 PROJECT = ch
 
 # Imported source files and paths
-include ./paths.mk
-include $(BOARD)/board.mk
+include ../../paths.mk
+include ./board.mk
 include $(CHIBIOS)/os/hal/platforms/STM32F1xx/platform.mk
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/ports/GCC/ARMCMx/STM32F1xx/port.mk

@@ -94,7 +94,7 @@ msg_t velocity_node(void *arg) {
 
 //	PID<float> pid(400, 2000, 400, -4000, 4000);
 //	PID<float> pid(5.0, 5.0, 1.0, -8.0, 8.0);
-	PID<float> pid(5.0, 1.0, 0.0, -8.0, 8.0);
+	PID<float> pid(1.0, 0.0, 0.0, -8.0, 8.0);
 	pid.set(0);
 
 	time = chTimeNow();
@@ -135,7 +135,6 @@ msg_t balance_node(void *arg) {
 	r2p::Publisher<r2p::PWM2Msg> pwm2_pub;
 	r2p::PWM2Msg *pwmp;
 
-	float zero = 0.0;
 	int32_t pwm = 0;
 
 	(void) arg;
@@ -149,16 +148,16 @@ msg_t balance_node(void *arg) {
 
 	PID<float> pid(600, 2000, 0, -2000, 2000);
 //	PID<float> pid(400, 0, 0, -1000, 1000);
-	pid.set(angle_setpoint - zero);
+	pid.set(angle_setpoint);
 
 	for (;;) {
-		pid.set(angle_setpoint - zero);
+		pid.set(angle_setpoint);
 
 		while (!tilt_sub.fetch(tiltp)) {
 			r2p::Thread::sleep(r2p::Time::ms(1));
 		}
 
-		pwm = -pid.update(tiltp->angle, 0.01); //rad2grad
+		pwm = pid.update(tiltp->angle, 0.01); //rad2grad
 		tilt_sub.release(*tiltp);
 
 		if (pwm2_pub.alloc(pwmp)) {
@@ -191,7 +190,6 @@ static const EXTConfig extcfg = { { { EXT_CH_MODE_DISABLED, NULL }, { EXT_CH_MOD
 msg_t madgwick_node(void *arg) {
 	r2p::Node node("madgwick");
 	r2p::Publisher<r2p::TiltMsg> tilt_pub;
-	float angle = 0;
 	attitude_t attitude_data;
 	systime_t time;
 
@@ -204,7 +202,7 @@ msg_t madgwick_node(void *arg) {
 
 	gyroRun(&SPI_DRIVER, NORMALPRIO);
 	accRun(&I2C_DRIVER, NORMALPRIO);
-	magRun(&I2C_DRIVER, NORMALPRIO);
+//	magRun(&I2C_DRIVER, NORMALPRIO);
 
 	node.advertise(tilt_pub, "tilt");
 
@@ -218,7 +216,7 @@ msg_t madgwick_node(void *arg) {
 
 		r2p::TiltMsg *msgp;
 		if (tilt_pub.alloc(msgp)) {
-			msgp->angle = attitude_data.pitch * 57.29578;
+			msgp->angle = attitude_data.roll * 57.29578;
 			tilt_pub.publish(*msgp);
 		}
 
@@ -239,24 +237,18 @@ int main(void) {
 
 	sdStart(&SD2, NULL);
 
-	r2p::Thread::set_priority(r2p::Thread::HIGHEST);
 	r2p::Middleware::instance.initialize(wa_info, sizeof(wa_info), r2p::Thread::LOWEST);
-
 	rtcantra.initialize(rtcan_config);
-
-	r2p::Thread::set_priority(r2p::Thread::NORMAL);
+	r2p::Middleware::instance.start();
 
 	uint8_t led = 1;
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(256), NORMALPRIO + 1, r2p::ledpub_node, (void *) &led);
-	r2p::Thread::sleep(r2p::Time::ms(300));
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 1, r2p::ledsub_node, NULL);
-	r2p::Thread::sleep(r2p::Time::ms(700));
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 2, madgwick_node, NULL);
-	r2p::Thread::sleep(r2p::Time::ms(2000));
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 2, madgwick_node, NULL);
+	r2p::Thread::sleep(r2p::Time::ms(5000));
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 2, balance_node, NULL);
-	r2p::Thread::sleep(r2p::Time::ms(20));
+	r2p::Thread::sleep(r2p::Time::ms(500));
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 2, velocity_node, NULL);
-
 	for (;;) {
 		r2p::Thread::sleep(r2p::Time::ms(500));
 	}
