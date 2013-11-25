@@ -90,6 +90,7 @@ CSRC = $(PORTSRC) \
        $(BOARDSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
+       $(CHIBIOS)/os/various/chprintf.c \
        $(RTCANSRC) \
        $(RTCANPLATFORMSRC) \
        l3g4200d.c \
