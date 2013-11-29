@@ -56,7 +56,7 @@
 #define LED4					15
 
 #define SERIAL_DRIVER           SD1
-//#define GPS_SERIAL_DRIVER       SD2
+#define GPS_SERIAL_DRIVER       SD2
 #define SPI_DRIVER              SPID1
 #define I2C_DRIVER              I2CD1
 

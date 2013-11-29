@@ -1,0 +1,1 @@
+>python C:\python27\Lib\site-packages\PyQt4\uic\pyuic.py C:\users\nguyen\desktop\thesis\code\nguyen\Calibration\magnetometer\freeimu_cal.ui > c:\users\nguyen\desktop\thesis\code\nguyen\calibration\magnetometer\ui_freeimu_cal.py
