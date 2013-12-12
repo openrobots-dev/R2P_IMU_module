@@ -61,12 +61,6 @@ RTCANConfig rtcan_config = {1000000, 100, 60};
 /* STM32 id & reset.                                                         */
 /*===========================================================================*/
 
-static uint8_t stm32_id8(void) {
-	const unsigned long * uid = (const unsigned long *)0x1FFFF7E8;
-
-	return (uid[2] & 0xFF);
-}
-
 static void stm32_reset(void) {
 
 	chThdSleep(MS2ST(10) );
