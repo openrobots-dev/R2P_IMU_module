@@ -582,33 +582,25 @@ static msg_t stream_madgwick_thread(void *arg) {
 	systime_t time = chTimeNow();
 
 	while (TRUE) {
-//		float mx = ((float) mag_data.x - (-440.0)) / (510 - (-440)) * 2 - 1.0;
-//		float my = ((float) mag_data.y - (-740.0)) / (380 - (-740)) * 2 - 1.0;
-//		float mz = ((float) mag_data.z - (-500.0)) / (500 - (-500)) * 2 - 1.0;
-		float mx = ((float) (mag_data.x + 76) / 420.3);
-		float my = ((float) (mag_data.y + 82) / 455.6);
-		float mz = ((float) (mag_data.z - 113) / 401.5);
-
-/*
-		MadgwickAHRSupdate((-gyro_data.x / 57.143) * 3.141592 / 180.0,
-				(gyro_data.y / 57.143) * 3.141592 / 180.0,
-				-(gyro_data.z / 57.143) * 3.141592 / 180.0,
-				-acc_data.x / 1000.0, acc_data.y / 1000.0, acc_data.z / 1000.0,
-				mx, -my, -mz);
-*/
+		float mx = ((float) mag_data.x - (-427.0)) / (461 - (-427)) * 2 - 1.0;
+		float my = ((float) mag_data.y - (-661.0)) / (313 - (-661)) * 2 - 1.0;
+		float mz = ((float) mag_data.z - (-463.0)) / (471 - (-463)) * 2 - 1.0;
+//		float mx = ((float) (mag_data.x + 76) / 420.3);
+//		float my = ((float) (mag_data.y + 82) / 455.6);
+//		float mz = ((float) (mag_data.z - 113) / 401.5);
 		/* V1 */
-//		MadgwickAHRSupdate((-(gyro_data.x - 3) / 57.143) * 3.141592 / 180.0,
-//				(-(gyro_data.y - 107) / 57.143) * 3.141592 / 180.0,
-//				((gyro_data.z + 118) / 57.143) * 3.141592 / 180.0,
-//				(acc_data.x + 17) / 1000.0, (acc_data.y + 9)/ 1000.0, (acc_data.z - 0) / 969.0,
-//				mx, my, mz);
+		MadgwickAHRSupdate((-(gyro_data.x + 24) / 57.143) * 3.141592 / 180.0,
+				(-(gyro_data.y - 3) / 57.143) * 3.141592 / 180.0,
+				((gyro_data.z -56) / 57.143) * 3.141592 / 180.0,
+				(acc_data.x + 31) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 56) / 980.0,
+				mx, my, mz);
 
 		/* V2 */
-		MadgwickAHRSupdate(((gyro_data.x + 15) / 57.143) * 3.141592 / 180.0,
-				((gyro_data.y + 25) / 57.143) * 3.141592 / 180.0,
-				((gyro_data.z - 10) / 57.143) * 3.141592 / 180.0,
-				(acc_data.x + 17) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 21) / 1000.0,
-				mx, my, mz);
+//		MadgwickAHRSupdate(((gyro_data.x + 15) / 57.143) * 3.141592 / 180.0,
+//				((gyro_data.y + 25) / 57.143) * 3.141592 / 180.0,
+//				((gyro_data.z - 10) / 57.143) * 3.141592 / 180.0,
+//				(acc_data.x + 17) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 21) / 1000.0,
+//				mx, my, mz);
 
 
 		getMadAttitude(&attitude_data);
@@ -632,16 +624,16 @@ static msg_t stream_madgwick_imu_thread(void *arg) {
 
 	while (TRUE) {
 		/* V1 */
-//		MadgwickAHRSupdateIMU((-(gyro_data.x - 3) / 57.143) * 3.141592 / 180.0,
-//				(-(gyro_data.y - 107) / 57.143) * 3.141592 / 180.0,
-//				((gyro_data.z + 118) / 57.143) * 3.141592 / 180.0,
-//				(acc_data.x + 17) / 1000.0, (acc_data.y + 9)/ 1000.0, (acc_data.z - 0) / 969.0);
+		MadgwickAHRSupdateIMU((-(gyro_data.x - 3) / 57.143) * 3.141592 / 180.0,
+				(-(gyro_data.y - 107) / 57.143) * 3.141592 / 180.0,
+				((gyro_data.z + 118) / 57.143) * 3.141592 / 180.0,
+				(acc_data.x + 17) / 1000.0, (acc_data.y + 9)/ 1000.0, (acc_data.z - 0) / 969.0);
 
 		/* V2 */
-		MadgwickAHRSupdateIMU(((gyro_data.x + 15) / 57.143) * 3.141592 / 180.0,
-				((gyro_data.y + 25) / 57.143) * 3.141592 / 180.0,
-				((gyro_data.z - 10) / 57.143) * 3.141592 / 180.0,
-				(acc_data.x + 17) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 21) / 1000.0);
+//		MadgwickAHRSupdateIMU(((gyro_data.x + 15) / 57.143) * 3.141592 / 180.0,
+//				((gyro_data.y + 25) / 57.143) * 3.141592 / 180.0,
+//				((gyro_data.z - 10) / 57.143) * 3.141592 / 180.0,
+//				(acc_data.x + 17) / 1000.0, (acc_data.y - 17)/ 1000.0, (acc_data.z - 21) / 1000.0);
 
 		getMadAttitude(&attitude_data);
 		chprintf((BaseSequentialStream*) &SERIAL_DRIVER, "%6d %f %f %f\r\n",
@@ -691,8 +683,8 @@ static msg_t stream_mahony_thread(void *arg) {
 		float my = ((float) mag_data.y - (-740.0)) / (380 - (-740)) * 2 - 1.0;
 		float mz = ((float) mag_data.z - (-500.0)) / (500 - (-500)) * 2 - 1.0;
 		MahonyAHRSupdate((-gyro_data.x / 57.143) * 3.141592 / 180.0,
-				(gyro_data.y / 57.143) * 3.141592 / 180.0,
-				-(gyro_data.z / 57.143) * 3.141592 / 180.0,
+				-(gyro_data.y / 57.143) * 3.141592 / 180.0,
+				(gyro_data.z / 57.143) * 3.141592 / 180.0,
 				-acc_data.x / 1000.0, acc_data.y / 1000.0, acc_data.z / 1000.0,
 				mx, -my, -mz);
 		getMahAttitude(&attitude_data);
