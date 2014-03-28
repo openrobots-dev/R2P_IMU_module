@@ -68,8 +68,6 @@ RTCANConfig rtcan_config = { 1000000, 100, 60 };
  * Velocity control node
  */
 PID vel_pid;
-//PID<float> vel_pid(1.0, 0.0, 0.0, -8.0, 8.0);
-//PID<float> vel_pid(5.0, 20.0, 0.0, -8.0, 8.0);
 float vel_setpoint = 0;
 float w_setpoint = 0;
 float angle_setpoint = 0;
@@ -98,7 +96,9 @@ msg_t velocity_node(void *arg) {
 	node.subscribe(qei_sub, "qei1");
 	node.subscribe(vel_sub, "velocity");
 
-	vel_pid.config(2.0, 1.0, 0.0, 0.05, -8.0, 8.0);
+	vel_pid.config(2.0, 2.0, 0.00, 0.05, -5.0, 5.0);
+//	vel_pid.config(5.0, 1.0, 0.00, 0.05, -5.0, 5.0);
+//	vel_pid.config(5.0, 1.0, 0.05, 0.05, -5.0, 5.0);
 	vel_pid.set(0);
 
 	for (;;) {
@@ -145,7 +145,7 @@ msg_t balance_node(void *arg) {
 	node.subscribe(tilt_sub, "tilt");
 
 	PID pid;
-	pid.config(600, 1, 0, 0.01, -2000, 2000);
+	pid.config(1000, 1, 0.005, 0.02, -4000, 4000);
 	//PID<float> pid(400, 0, 0, -1000, 1000);
 	pid.set(angle_setpoint);
 
@@ -215,17 +215,16 @@ msg_t madgwick_node(void *arg) {
 	for (;;) {
 		MadgwickAHRSupdateIMU((gyro_data.x / 57.143) * 3.141592 / 180.0, (gyro_data.y / 57.143) * 3.141592 / 180.0,
 				(gyro_data.z / 57.143) * 3.141592 / 180.0, acc_data.x / 1000.0, acc_data.y / 1000.0,
-				acc_data.z / 1000.0);
+				acc_data.z / 980.0);
 		getMadAttitude(&attitude_data);
 
 		r2p::TiltMsg *msgp;
 		if (tilt_pub.alloc(msgp)) {
-			msgp->angle = -((attitude_data.roll * 57.29578) + 2.2); // basketbot offset
-			msgp->angle = -((attitude_data.roll * 57.29578));
+			msgp->angle = -((attitude_data.roll * 57.29578) + 4.5); // basketbot offset
 			tilt_pub.publish(*msgp);
 		}
 
-		time += MS2ST(10);
+		time += MS2ST(20);
 		chThdSleepUntil(time);
 	}
 	return CH_SUCCESS;
