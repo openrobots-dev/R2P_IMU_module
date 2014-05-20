@@ -32,7 +32,7 @@ gyro_data_t gyro_data =
 int init_l3g4200d(SPIDriver *spip) {
 
   l3g4200dReadRegister(spip, L3G4200D_WHO_AM_I);
-  l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG1, 0x7F);
+  l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG1, 0x7F); /* 200 Hz */
   l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG2, 0x00);
   l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG3, 0x08);
   l3g4200dWriteRegister(spip, L3G4200D_CTRL_REG4, 0x10);
