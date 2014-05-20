@@ -33,7 +33,7 @@ int lsm303_acc_init(I2CDriver *i2cp) {
 
   /* configure accelerometer */
   tx_data[0] = LSM303_CTRL_REG1_A | LSM303_AUTO_INCREMENT; /* register address */
-  tx_data[1] = 0x67;
+  tx_data[1] = 0x67; /* 200 Hz */
   tx_data[2] = 0x80;
   tx_data[3] = 0x10;
   tx_data[4] = 0x08;
