@@ -71,13 +71,17 @@ PID vel_pid;
 float vel_setpoint = 0;
 float w_setpoint = 0;
 float angle_setpoint = 0;
+float left_speed = 0;
+float right_speed = 0;
 
-bool qei_callback(const r2p::QEIMsg &msg) {
-	float v;
+bool qei1_callback(const r2p::QEIMsg &msg) {
+	right_speed = (msg.delta / (165500.0f)) * 20; // ->m/s @20hz
 
-	palTogglePad(LED3_GPIO, LED3);
-	v = (msg.delta / (165500.0f)) * 20; // ->m/s @20hz
-	angle_setpoint = vel_pid.update(v);
+	return true;
+}
+
+bool qei2_callback(const r2p::QEIMsg &msg) {
+	left_speed = -(msg.delta / (165500.0f)) * 20; // ->m/s @20hz
 
 	return true;
 }
@@ -86,15 +90,19 @@ msg_t velocity_node(void *arg) {
 	r2p::Node node("velocity");
 	r2p::Subscriber<r2p::Velocity3Msg, 5> vel_sub;
 	r2p::Velocity3Msg *velp;
-	r2p::Subscriber<r2p::QEIMsg, 5> qei_sub;
-	r2p::QEIMsg *qeip;
+	r2p::Subscriber<r2p::QEIMsg, 5> qei1_sub(qei1_callback);
+	r2p::Subscriber<r2p::QEIMsg, 5> qei2_sub(qei2_callback);
+	r2p::Publisher<r2p::Velocity3Msg> odometry_pub;
 	float v;
+	float w;
 
 	(void) arg;
 	chRegSetThreadName("velocity");
 
-	node.subscribe(qei_sub, "qei1");
+	node.subscribe(qei1_sub, "qei1");
+	node.subscribe(qei2_sub, "qei2");
 	node.subscribe(vel_sub, "velocity");
+	if (!node.advertise(odometry_pub, "odometry")) while(1);
 
 	vel_pid.config(2.0, 2.0, 0.00, 0.05, -5.0, 5.0);
 //	vel_pid.config(5.0, 1.0, 0.00, 0.05, -5.0, 5.0);
@@ -107,14 +115,20 @@ msg_t velocity_node(void *arg) {
 			continue;
 		}
 
-		while (qei_sub.fetch(qeip)) {
-			v = (qeip->delta / (165500.0f)) * -20.0; // ->m/s @20hz
-			angle_setpoint = vel_pid.update(v); // 20hz
-			qei_sub.release(*qeip);
+		v = (left_speed + right_speed) / 2;
+		w = (right_speed - left_speed) / 0.425;
+		angle_setpoint = -vel_pid.update(v); // 20hz
+
+		r2p::Velocity3Msg *msgp;
+		if (odometry_pub.alloc(msgp)) {
+			msgp->x = v;
+			msgp->y = 0;
+			msgp->w = w;
+			odometry_pub.publish(*msgp);
 		}
 
 		while (vel_sub.fetch(velp)) {
-			palTogglePad(LED3_GPIO, LED2);
+			palTogglePad(LED2_GPIO, LED2);
 			vel_setpoint = velp->x;
 			w_setpoint = velp->w;
 			vel_sub.release(*velp);
@@ -145,8 +159,8 @@ msg_t balance_node(void *arg) {
 	node.subscribe(tilt_sub, "tilt");
 
 	PID pid;
-	pid.config(1000, 1, 0.005, 0.02, -4000, 4000);
-	//PID<float> pid(400, 0, 0, -1000, 1000);
+//	pid.config(1000, 1, 0.005, 0.02, -4000, 4000);
+	pid.config(1000, 2, 0, 0.02, -4000, 4000);
 	pid.set(angle_setpoint);
 
 	for (;;) {
@@ -160,10 +174,10 @@ msg_t balance_node(void *arg) {
 		tilt_sub.release(*tiltp);
 
 		if (pwm2_pub.alloc(pwmp)) {
-			pwmp->pwm1 = -(pwm + (w_setpoint * 100));
-			pwmp->pwm2 = pwm - (w_setpoint * 100);
+			pwmp->value[0] = -(pwm + (w_setpoint * 100));
+			pwmp->value[1] = pwm - (w_setpoint * 100);
 			pwm2_pub.publish(*pwmp);
-			palTogglePad(LED2_GPIO, LED3);
+			palTogglePad(LED3_GPIO, LED3);
 			palSetPad(LED4_GPIO, LED4);
 		} else {
 			palClearPad(LED4_GPIO, LED4);
@@ -220,7 +234,7 @@ msg_t madgwick_node(void *arg) {
 
 		r2p::TiltMsg *msgp;
 		if (tilt_pub.alloc(msgp)) {
-			msgp->angle = -((attitude_data.roll * 57.29578) + 4.5); // basketbot offset
+			msgp->angle = -((attitude_data.roll * 57.29578) + 3.05); // basketbot offset
 			tilt_pub.publish(*msgp);
 		}
 
@@ -230,35 +244,6 @@ msg_t madgwick_node(void *arg) {
 	return CH_SUCCESS;
 }
 
-msg_t debug_node(void *arg) {
-	r2p::Node node("debug");
-
-	(void) arg;
-	chRegSetThreadName("debug");
-
-	sdStart(&SERIAL_DRIVER, NULL);
-
-#if 0
-	r2p::TiltMsg sub_msgbuf[2], *sub_queue[2];
-	r2p::Subscriber<r2p::TiltMsg> tilt_sub(sub_queue, 2);
-	r2p::TiltMsg *tiltp;
-
-	node.subscribe(tilt_sub, "tilt", sub_msgbuf);
-
-	for (;;) {
-		node.spin(r2p::Time::ms(500));
-
-		if (tilt_sub.fetch(tiltp)) {
-			chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "tilt: %f\r\n", tiltp->angle);
-			tilt_sub.release(*tiltp);
-		} else {
-			chprintf((BaseSequentialStream*)&SERIAL_DRIVER, "timeout%d\r\n");
-		}
-	}
-#endif
-
-	return CH_SUCCESS;
-}
 
 /*
  * Application entry point.
@@ -273,16 +258,17 @@ int main(void) {
 	rtcantra.initialize(rtcan_config);
 	r2p::Middleware::instance.start();
 
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 1, r2p::ledsub_node, NULL);
-	uint8_t led = 1;
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 1, r2p::ledpub_node, (void *) &led);
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(2048), NORMALPRIO + 2, madgwick_node, NULL);
+	r2p::ledsub_conf ledsub_conf = { "leds" };
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 1, r2p::ledsub_node, (void *)&ledsub_conf);
+	r2p::ledpub_conf ledpub_conf = {"leds", 1};
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(512), NORMALPRIO + 1, r2p::ledpub_node, (void *) &ledpub_conf);
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(2048), NORMALPRIO + 3, madgwick_node, NULL);
 	r2p::Thread::sleep(r2p::Time::ms(5000));
 
-	r2p::Thread::create_heap(NULL, THD_WA_SIZE(2048), NORMALPRIO + 2, balance_node, NULL);
+	r2p::Thread::create_heap(NULL, THD_WA_SIZE(2048), NORMALPRIO + 3, balance_node, NULL);
 	r2p::Thread::sleep(r2p::Time::ms(500));
 	r2p::Thread::create_heap(NULL, THD_WA_SIZE(2048), NORMALPRIO + 2, velocity_node, NULL);
-//	r2p::Thread::create_heap(NULL, THD_WA_SIZE(1024), NORMALPRIO + 2, debug_node, NULL);
+
 	for (;;) {
 		r2p::Thread::sleep(r2p::Time::ms(500));
 	}
