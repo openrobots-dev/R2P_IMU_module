@@ -104,7 +104,7 @@ msg_t velocity_node(void *arg) {
 	node.subscribe(vel_sub, "velocity");
 	if (!node.advertise(odometry_pub, "odometry")) while(1);
 
-	vel_pid.config(2.0, 2.0, 0.00, 0.05, -5.0, 5.0);
+	vel_pid.config(2.0, 2, -0.1, 0.05, -5.0, 5.0);
 //	vel_pid.config(5.0, 1.0, 0.00, 0.05, -5.0, 5.0);
 //	vel_pid.config(5.0, 1.0, 0.05, 0.05, -5.0, 5.0);
 	vel_pid.set(0);
@@ -117,7 +117,7 @@ msg_t velocity_node(void *arg) {
 
 		v = (left_speed + right_speed) / 2;
 		w = (right_speed - left_speed) / 0.425;
-		angle_setpoint = -vel_pid.update(v); // 20hz
+		angle_setpoint = vel_pid.update(v); // 20hz
 
 		r2p::Velocity3Msg *msgp;
 		if (odometry_pub.alloc(msgp)) {
@@ -160,7 +160,7 @@ msg_t balance_node(void *arg) {
 
 	PID pid;
 //	pid.config(1000, 1, 0.005, 0.02, -4000, 4000);
-	pid.config(1000, 2, 0, 0.02, -4000, 4000);
+	pid.config(600, 0.35, 0, 0.02, -4000, 4000);
 	pid.set(angle_setpoint);
 
 	for (;;) {
@@ -174,8 +174,8 @@ msg_t balance_node(void *arg) {
 		tilt_sub.release(*tiltp);
 
 		if (pwm2_pub.alloc(pwmp)) {
-			pwmp->value[0] = -(pwm + (w_setpoint * 100));
-			pwmp->value[1] = pwm - (w_setpoint * 100);
+			pwmp->value[0] = (pwm - w_setpoint * 100);
+			pwmp->value[1] = -(pwm + w_setpoint * 100);
 			pwm2_pub.publish(*pwmp);
 			palTogglePad(LED3_GPIO, LED3);
 			palSetPad(LED4_GPIO, LED4);
@@ -234,7 +234,7 @@ msg_t madgwick_node(void *arg) {
 
 		r2p::TiltMsg *msgp;
 		if (tilt_pub.alloc(msgp)) {
-			msgp->angle = -((attitude_data.roll * 57.29578) + 3.05); // basketbot offset
+			msgp->angle = (-attitude_data.roll * 57.29578) - 3.35; // basketbot offset
 			tilt_pub.publish(*msgp);
 		}
 

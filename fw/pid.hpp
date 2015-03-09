@@ -1,117 +1,98 @@
 #ifndef _PID_HPP_
 #define _PID_HPP_
 
-template<typename T>
+#include <float.h>
+
 class PID {
 private:
-	T i_;
-	T d_;
-	T setpoint_;
-	T kp_;
-	T ki_;
-	T kd_;
-	T min_;
-	T max_;
+	float _i;
+	float _d;
+	float _setpoint;
+	float _k;
+	float _ki;
+	float _kd;
+	float _min;
+	float _max;
 
 public:
-	PID(T kp, T ki, T kd, T min, T max);
-	void config(T kp, T ki, T kd);
-	void config(T kp, T ki, T kd, T min, T max);
-	void set(T setpoint);
-	T update(T measure, T dt);
+	PID(void);
+	void config(float k, float ti, float td, float ts, float min, float max);
+	void set(float setpoint);
+	float update(float measure);
 };
 
-template<typename T>
-PID<T>::PID(T kp, T ki, T kd, T min, T max) :
-		kp_(kp), ki_(ki), kd_(kd), min_(min), max_(max) {
-	i_ = 0;
-	d_ = 0;
-	setpoint_ = 0;
+
+PID::PID(void) {
+	_i = 0;
+	_d = 0;
+	_setpoint = 0;
+	_k = 0;
+	_ki = 0;
+	_kd = 0;
+	_min = -FLT_MAX;
+	_max = FLT_MAX;
+
 }
 
-template<typename T>
-void PID<T>::config(T kp, T ki, T kd) {
 
-	kp_ = kp;
-	ki_ = ki;
-	kd_ = kd;
+void PID::config(float k, float ti, float td, float ts, float min = -FLT_MAX, float max = FLT_MAX) {
+
+	chSysLock();
+	_k = k;
+	_ki = (ti == 0) ? 0 : k * (ts / ti);
+	_kd = k * (td / ts);
+	_min = min;
+	_max = max;
+	_i = 0;
+	_d = 0;
+	chSysUnlock();
 }
 
-template<typename T>
-void PID<T>::config(T kp, T ki, T kd, T min, T max) {
 
-	kp_ = kp;
-	ki_ = ki;
-	kd_ = kd;
-	min_ = min;
-	max_ = max;
-}
+void PID::set(float setpoint) {
 
-template<typename T>
-void PID<T>::set(T setpoint) {
-
-	setpoint_ = setpoint;
-}
-
-template<typename T>
-T PID<T>::update(T measure, T dt) {
-	T error;
-	T output;
-
-	/* calculate error */
-	error = setpoint_ - measure;
-
-	/* proportional term */
-	output = (kp_ * error);
-
-	/* integral term */
-	i_ += error * dt;
-	output = (kp_ * error);
-
-	/* derivative term */
-	output += (kd_ * (error - d_));
-	d_ = error;
-
-	/* saturation filter */
-	if (output > max_) {
-		output = max_;
-		/* anti windup: cancel error integration */
-		i_ -= error * dt;
+	chSysLock();
+	// Reset integral and derivative components if sign has changed or setpoint is 0
+	if ((setpoint > 0) != (_setpoint  > 0) ) {
+		_i = 0;
+		_d = 0;
 	}
 
-	if (output < min_) {
-		output = min_;
+	_setpoint = setpoint;
+	chSysUnlock();
+}
+
+
+float PID::update(float measure) {
+	float error;
+	float output;
+
+	/* calculate error */
+	error = _setpoint - measure;
+
+	/* proportional term */
+	output = (_k * error);
+
+	/* integral term */
+	_i += _ki * error;
+	output += _i;
+
+	/* derivative term */
+	output += _kd * (error - _d);
+	_d = error;
+
+	/* saturation filter */
+	if (output > _max) {
+		output = _max;
 		/* anti windup: cancel error integration */
-		i_ -= error * dt;
+		_i -= _ki * error;
+	} else if (output < _min) {
+		output = _min;
+		/* anti windup: cancel error integration */
+		_i -= _ki * error;
 	}
 
 	return output;
-//
-//	/* saturation filter */
-//	if (output > max_) {
-//		/* conditional anti-windup: integrate only if error and setpoint have different sign */
-//		if ((error >= 0) && (setpoint_ <= 0)) {
-//			i_ += error * dt;
-//			output += (ki_ * i_);
-//		}
-//		output = max_;
-//	} else if (output < min_) {
-//		/* conditional anti-windup: integrate only if error and setpoint have different sign */
-//		if ((error >= 0) && (setpoint_ <= 0)) {
-//			i_ += error * dt;
-//			output += (ki_ * i_);
-//		}
-//		output = min_;
-//	} else {
-//		i_ += error * dt;
-//		output += (ki_ * i_);
-//	}
-//
-//	/* derivative term */
-//	output += (kd_ * (error - d_));
-//	d_ = error;
-//
-//	return output;
 }
 
 #endif /* _PID_HPP_ */
